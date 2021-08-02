@@ -1,0 +1,15 @@
+#!/bin/bash
+
+#!/bin/bash
+
+for file in $@ ; do
+  grep -w -n if ${file} | grep -v "\{"              # if {
+  grep -w -n else ${file} | grep -v "\{"       # else {
+  grep -w -n else ${file} | grep -v "\}"       # } else 
+  grep -w -n for ${file} | grep -v "\{"             # for {
+  grep -w -n while ${file} | grep -v "\{"             # while {
+  grep -n "++" ${file} | grep "retrun"             # return ++
+  grep -n "++" ${file} | grep -v "for" | grep "("  | grep ")"            # (++)
+done
+
+# sort -n -k1 -r

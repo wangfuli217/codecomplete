@@ -1,0 +1,10 @@
+Tranalation Table
+Variable Meaning
+......   ......
+XPOS x-Coordinate Position(in meters)
+YPOS y-Coordinate Position(in meters)
+NDSCMP Needs Computing (= 0 if no computation is needed;
+                        = 1 if  computation is needed)
+PTGTTL Point Grand Total
+PTVLMX Point Value Maxinum
+PSCRMX Possible Score Maxinum

@@ -1,0 +1,143 @@
+子程序中的多处返回
+    增强阅读性的情况下，使用return，如利用return错误信息来做异常处理(防卫子句)，适当减少每个子程序中的return数量.
+    用防卫子句(找返回或早退出)来简化复杂的错误处理，不要使用过多的缩进嵌套。
+    减少子程序中 return 的数量。
+    if (!file.validName()) {
+        errorStatus = FileError.InvalidFileName;
+        return;
+    }
+    if (!file.Open()) {
+        errorStatus = FileError.CantOpenFile;
+        return;
+    }
+    if (!encryptionKey.valid()) {
+        errorStatus = FileError.InvalidEncryptionKey;
+        return;
+    }
+    // 此处为处理正常情况的代码
+--------------------------------------------------------------------------------
+# 防卫子句
+if file.validName() Then
+   if file.Open() Then
+      if encryptionKey.vaild() Then
+         if file.Decrypt(encryptionKey) Then
+            'lost of code //正常执行的代码;被遮蔽了
+            ...
+         End if
+      End if
+   End if
+End if
+-> 优化
+if Not file.validName() Then Exit Sub
+if Not file.Open() Then Exit Sub
+if Not encryptionKey.vaild() Then Exit Sub
+if Not file.Decrypt(encryptionKey) Then Exit Sub
+'lost of code  //正常执行的代码
+...
+--------------------------------------------------------------------------------
+public string Compare(int value1,int value2 ){
+    String re;
+    if(value1 < value2 ){
+        re = "LT";
+    } else if(value1 > value2){
+        re = "GT";
+    } else{
+        re = "EQ";
+    }
+    return re;
+}
+-> 优化 子程序的多处返回——好代码
+public string Compare(int value1,int value2 ){
+    if(value1 < value2 ){
+        String re = "LT";
+        return re;
+    } else if(value1 > value2){
+        String re = "GT";
+        return re 
+    } else { 
+        String re = "EQ";
+        return re;
+    }
+}
+--------------------------------------------------------------------------------
+if file.validName() Then
+   if file.Open() Then
+      if encryptionKey.vaild() Then
+         if file.Decrypt(encryptionKey) Then
+            'lost of code       //深层嵌套，遮蔽了正常执行的代码
+            ...
+         End if
+      End if
+   End if
+End if
+-> 优化 发现错误以后将不执行后续代码
+Tf not file.vaildName() Then
+   errorStatus = FileError_InvalidFileName
+   Exit Sub
+End If
+
+Tf not file.open() Then
+   errorStatus = FileError_CantOpenFile
+   Exit Sub
+End If
+
+Tf not encryptionKey.valid() Then
+   errorStatus = FileError_InvalidEncryptionKey
+   Exit Sub
+End If
+
+Tf not file.Decrypt( encryptionKey ) Then
+   errorStatus = FileError_InvalidDecryptFile
+   Exit Sub
+End If
+....
+================================================================================
+    
+递归:对于大多数问题，它所带来的解将会是极其复杂的——在那些情况下，使用简单的迭代通常会比较容易理解。
+    确认递归能够停止:检查子程序以确认其中含有一条非递归的路径。通常这意味着该子程序中含有一项判断，无须进一步递归就停下来。
+    使用安全计数器防止出现无穷递归:
+    把递归限制在一个子程序内：循环递归(A调用B，B调用C，C调用A)
+    留心栈空间
+    不要用递归去计算阶乘或者斐波纳契数列：最重要的，在用递归之前你应该考虑它的替换方案
+    
+goto
+    去goto方法: 你可以把代码拆分成小的子程序，使用try-finally，使用嵌套if，检测并重新检测某个状态变量，或者重新设置条件结构。
+    一个完全知道goto不是好选择的程序员，也会为了增强可读性和可维护性而选用goto.
+    确认goto不会产生某些执行不到的代码
+    如果你是一位经理，那么就应该持这样的观点：对某一个goto用法所展开的争论并不是事关全局的。
+如果程序员知道存在替换方案，并且也愿意为使用goto辩解，那么用goto也无妨.
+    if ( statusOK ){
+        if ( dataAvailable ){
+            importVariable = x ;
+            goto MID_LOOP;//借助goto共享else子句的一段代码
+        }
+    } else{
+        importantVariable = GetValue();
+        MID_LOOP;
+        // lots of code
+    }
+-> 优化
+    if (statusOK ){
+        if ( dataAvailable ){
+            importVariable = x ;
+            DoLotsOfCode( importantVariable );//在这里调用放公共代码的子程序
+        }
+    } else{
+        importantVariable = GetValue();
+        DoLotsOfCode( importantVariable );
+    }
+方法          优点                              缺点 
+使用goto      避免了深层嵌套和不必要的检测      使流程变得难以分析
+嵌套if        避免了使用goto                    增加了子程序的复杂度
+状态变量      避免了使用goto和深层嵌套          引入了额外的检测
+try-finally   避免了使用goto和深层嵌套          不是所有语言都支持
+
+
+要在特定场合下谨慎地使用goto
+    goto的坏处
+        还有goto的代码很难安排好格式，影响逻辑结构
+        goto会破换编译器的优化特性，使流程变得难以分析
+    goto的好处
+        如果位置恰当，goto可以减少重复的代码
+        某些情况下会让代码的运行速度更快，体积更小
+        goto用在执行清理操作，可以减少忘记释放资源的可能

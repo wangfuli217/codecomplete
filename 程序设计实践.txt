@@ -1,0 +1,71 @@
+程序设计实践 Booklist
+
+本书单大部分部来自 The Practice of Programming《程序设计实践》的引用部分， 大都比较经典，值得一读。
+
+    The Practice of Programming /《程序设计实践》
+
+风格 / Style
+    The Elements of Style /《风格的要素》
+    The C Programming Language /《C 程序设计语言》
+    The Elements of Programming Style /《编程格调》
+    Writing Solid Code /《编程精粹》
+    Code Complete /《代码大全》
+    Expert C Programming: Deep C Secret /《C 专家编程》
+
+算法和数据结构 / Algorithms and Data Structure
+    Algorithms /《算法》
+    Algorithms in C++ /《算法 C++ 实现》
+    The Art of Computer Programming /《计算机程序设计艺术》
+    Design and Validation of Computer Protocols
+    Software: Practice and Experience, The Errors of TEX
+
+设计与实现 / Design and Impelementation
+    Generic Programming and the STL /《范型编程和 STL》
+    The C Programming Language /《C 程序设计语言》
+    The C++ Programming Language /《C++ 程序设计语言》
+    The Java Programming Language /《Java 程序设计语言》
+    The AWK Programming Language /《AWK 程序设计语言》
+    Programming Perl /《Perl 语言编程》
+    Design Pattern: Elements of Reusable Object-Oriented Software /《设计模式》
+    The Magic Machine
+
+接口 / Interfaces
+    The Mythical Man Month /《人月神话》
+    Large-Scale C++ Software Design /《大规模 C++ 程序设计》
+    C Interfaces and Implementation /《C 语言接口与实现》
+    Rapid Development /《快速 软件开发》
+    Designing Visual Interfaces: Communication Oriented Techniques
+    Designing the User Interfaces: Strategies for Effective Human-Computer Interaction
+    About Face: The Essentials of User Interface Design
+    User Interface Design
+
+调试 / Debugging
+    Writing Solid Code /《编程精粹》
+    Code Complete /《代码大全》
+
+测试 / Testing
+    Software: Practice and Experience, The Errors of TEX
+    Programming Pearls /《编程珠玑》
+    More Programming Pearls /《编程珠玑 II》
+
+性能 / Performance
+    Inner Loop
+    Computer Organization and Design: The Hardware/Software Interfaces
+    Programming Pearls /《编程珠玑》
+    More Programming Pearls /《编程珠玑 II》
+
+可移植性 / Portability
+    C: A Reference Manual /《C 语言参考手册》
+    Java Language Specification
+    Advanced Programming in the Unix Environment /《UNIX 环境高级编程》
+    The Inferno Operating System
+    Bell Labs Technical Journal
+
+标记 / Notation
+    The Unix Programming Environment /《UNIX 编程环境》
+    TEX: The Program
+    A Retargetable C Compiler: Design and Implementation
+    The Java Virtual Machine Specification /《Java 虚拟机规范》
+    Regular Expression Search Algorithm, Communications of the ACM
+    Mastering Regular Expression /《精通正则表达式》
+    Hardware/Software Tradeoffs for Bitmap Graphics on the Blit, Software-Practice and Experience

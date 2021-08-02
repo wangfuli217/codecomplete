@@ -1,0 +1,162 @@
+循环是一个非正式的术语，用来指代任意一种迭代控制结构----任一能够导致应用程序反复执行一段代码的结构。
+-> 知道如何以及何时使用每一种循环是创建高质量软件的一个决定性因素
+-> 灵活度和检查位置决定了如何对用作控制结构的循环类型进行选择。
+    for while do-while 灵活 foreach 严格
+    for while foreach  开始 do-while 结束
+
+
+计数循环：执行次数一定，如for循环。不要在for循环中去修改下标值或中途退出。      off-by-one
+    连续求值的循环：预先不知道循环次数，如while循环                             条件退出
+    无限循环：一旦启动就一直执行，除非在循环中间退出，如while循环带break中断    beansdb 的 drive_machine函数
+    迭代器循环：容器类的常见操作，如foreach循环                                 queue.h uthash.h utlist.h tree.h ht.h
+
+
+什么时候使用 while 循环
+    有关while循环的最主要事项就是决定在循环开始处还是结尾处做检测。
+    1. 检测位于循环的开始  -> 可能执行0次
+    2. 检测位于循环的结尾  -> 至少执行一次
+    3. 检测位于循环体内
+nameCount=0;
+//放在循环开始
+while(!inputing.EndOfFile()){
+input>>inputString;
+names{nameCount}=inputString
+...
+
+//放在循环末尾
+nameCount++;
+}
+
+for(inputFile.MoveToStart().recorCount = 0;inputFile.EndOfFile;recordCount++){
+    inputFile.GetRecord();
+}
+-> 这个例子会让人误会是recorCount在控制循环，实际上是inputFile.EndOfFile在控制循环。
+inputFile.MoveToStart();
+recordCount=0;
+while(!inputFile.EndOfFile){
+    inputFile.GetRecord();
+    recordCount++
+}
+--------------------------------------------------------------------------------
+    
+什么时候使用带退出的循环：-> 终止条件出现在循环中间而不是开始或者末尾的循环。-> 可能循环体内代码部分执行
+    如果把循环条件放在开始或结束处，那就要写一个半循环。还要注意把所有的退出条件放在一起，
+避免将它写的到处都是。
+    -> 把所有退出条件放在一处。把它们写的到处都是，实际上就会使得某些终止条件在调试、修改或者测试的时候被忽略。
+    -> 带退出循环，更容易维护。
+
+# beansdb worker.c 中worker_main中实现 leader-follower 多线程模型
+    
+什么时候使用 for 循环：-> 循环头写好就可以忘掉它
+    不需要在内部控制循环，循环条件是简单的递增或递减。如果更为复杂，则要使用 while 循环。
+    如果代码中if后面有对i在使用，使用while。
+for(int i = 0;i<100;i++){
+    //some code 
+    ...
+    if(...){
+        break;
+    }
+    //more code
+    ...
+}
+-> 优化
+int i = 0;
+while(i<100){
+//some code 
+    ...
+    if(...){
+        i=100;
+    }
+    //more code
+    ...
+}
+--------------------------------------------------------------------------------
+    foreach 消除了循环内务处理算术，从而消除了任何由循环控制算术导致出错的可能性。
+    避免出现依赖于循环下标最终取值的代码
+
+for(recorCount = 0;recordCount < MAX_RECORDS;recordCount++){
+    if(entry{ recordConut} == testValue ){
+        break:
+    }
+    //lots of code
+    ...
+    if( recordCount < MAX_RECORDS){
+        return(true);
+    }else{
+        return(false);
+    }
+}
+-> 优化
+found = flase;
+for(recorCount = 0;recordCount < MAX_RECORDS;recordCount++){
+    if(entry{ recordConut} == testValue ){
+        found = true;
+        break:
+    }
+//lots of code
+...
+return (found);
+}
+================================================================================
+    
+1.阻止循环发生错误的方法
+    1）减少能影响循环的因素数量，简化简化再简化
+    2）把循环体内部看做一个子程序，把循环控制放在循环体外部。 --> 外围程序只知道它的控制条件，确不知道它的内容。
+
+循环的原则
+    进入循环
+        只从一个位置进入循环
+        把初始化代码紧放在循环前面
+        用while(true)表示无限循环-> 首选。 for(;;) 可以接受 (moosefs中无差别使用) (redis多数使用while(1), 防止while嵌套而是用for(;;))
+        在适当的情况下多使用for循环；但如果while循环更适用的话，不要使用for循环：
+        因为while循环需要在循环之前初始化条件，循环最后变更条件，容易出错和可读性较差 (redis的listIter都是用while循环)
+    处理循环体
+        避免空循环
+
+while((inputChar = dataFile.GetChar()) != CharType_Eof){
+    ;
+}
+-> 优化
+do{
+    inputChar = dataFile.GetChar();
+}while(inputChar != CharType_Eof);
+        
+        循环内务操作(循环变量的变更)要么放在循环的开始，要么放在循环的末尾
+        一个循环只做一件事：应该把循环体当做黑盒或子程序看待，读者只需要关心其循环条件是什么，而不需关心其内容
+    退出循环
+        设法确认循环能够终止：要考虑正常的情况、端点，及每一种异常情况
+        使循环终止条件看起来很明显
+        不要为了终止循环而胡乱改动for循环的下标
+        避免出现依赖于循环下标最终取值的代码：更具自我描述性的做法是，在循环体内某个适当的地方把这一最终取值赋给某个变量
+        考虑使用安全计数器：安全计数器是一个特殊变量，在每次循环之后都递增它，以便判断该循环的执行次数是不是过多
+        考虑在while循环中使用break语句而不用布尔标记
+        小心那些有很多break散布在循环各处
+        在循环开始处用continue进行判断：可以避免用一个让整个循环体的缩进的if块
+        除非你已经考虑过各种替换方案，否则不要使用break：使用break消除了把循环看做黑盒子的可能性
+    检查端点：既要在脑海中模拟，也要手工检查一遍
+    循环变量
+        用整数或者枚举类型表示数组和循环的边界
+        在嵌套循环中使用有意义的变量名来提高其可读性：避免i、j、k及下标串话误用
+for (int i = 0; i < numPayCodes; i++ ){
+    for( int j = 0;j < 12; j++){
+        for( int k = 0;k < numDivisions; k++ ){
+        sun = sum + transaction[i][j][k];
+        }
+    }
+}
+-> 透过i,j,k根本看不出transactionde的内容
+for (int payCodeIdx = 0; payCodeIdx < numPayCodes; payCodeIdx ++ ){
+    for( int month = 0;month  < 12; month ++){
+        for( int divisionIdx = 0;divisionIdx  < numDivisions; divisionIdx ++ ){
+        sun = sum + transaction[payCodeIdx][month][divisionIdx];
+        }
+    }
+}
+        
+        把循环下标变量的作用域限制在本循环内
+    循环的长度
+        循环要尽可能地短，以便能够一目了然：建议限制在一屏之内
+        把嵌套限制在3层以内
+        把长循环的内容移到子程序里
+        要让长循环格外清晰
+

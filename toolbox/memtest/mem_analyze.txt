@@ -1,0 +1,82 @@
+mem_analyze(1)		      mem_analyze manual		mem_analyze(1)
+
+
+
+NAME
+       mem_analyze  -  analyzes	 the  output  of  programs  linked  with  lib-
+       mem_test(3)
+
+SYNOPSIS
+       mem_analyze [-i] file
+
+DESCRIPTION
+       mem_analyze is a perl script that is used to used to summarize the data
+       produced by libmem_test(3)
+
+       mem_analyze  will  scan through a log file produced by a program linked
+       with libmem_test and keep track of the memory locations	used  and  the
+       amount of memory allocated at each. When mem_analyze is done, the loca-
+       tions of any memory still allocated will be listed, along with the name
+       of the file and function that last touched these locations.
+
+EXAMPLE
+       Here  is	 an example of mem_analyze being run on a log file produced by
+       the supplied example program linked with libmem_test.
+
+	      jbuchana$ mem_analyze MEM_TEST_FILE
+
+	      128 bytes of memory left allocated at 134522336
+
+	      134522336 was last touched by  licalloc  at  line	 32  of	 exam-
+	      ple_program.c
+
+	      128 bytes of memory left allocated at 134521680
+
+	      134521680	 was  last  touched  by	 limalloc  at line 20 of exam-
+	      ple_program.c
+
+	      16 bytes of memory left allocated at 134521608
+
+	      134521608 was last touched by  listrdup  at  line	 28  of	 exam-
+	      ple_program.c
+
+	      512 bytes of memory left allocated at 134521816
+
+	      134521816	 was  last  touched  by	 lirealloc at line 25 of exam-
+	      ple_program.c
+
+	      jbuchana$
+
+       Note that if there had been no  (detected)  memory  leaks,  mem_analyze
+       would not have produced any output.
+
+OPTIONS
+       When  a call to one of the allocation functions fails (returning a NULL
+       pointer), libmem_test writes an error message to	 its  log  file,  then
+       passes the NULL pointer to the users’ program, which may do as it wills
+       with it.
+
+       When mem_analyze encounters one of these	 errors,  it  normally	exits,
+       after printing the error message as found in the log file.
+
+       By  using  the  -i  switch,  you	 may  override this behavior and force
+       mem_analyze to continue. This is not recommended, but  it  is  provided
+       for those who need this functionality.
+
+FILES
+       MEM_TEST_FILE (the default name of the log file)
+
+SEE ALSO
+       libmem_test(3)
+
+BUGS
+       mem_analyze  can	 be rather slow on large log files. I’ve had log files
+       of over 10M in size, these required some patience to analyze.
+
+       Both mem_analyze and libmem_test are fairly unsophisticated. There  are
+       functions  which	 use  and free memory that aren’t dealt with. Nonethe-
+       less, they have helped me find my more common forms of leaking  memory.
+
+
+
+Courts of Chaos Research	 March 8, 1997			mem_analyze(1)

@@ -1,0 +1,216 @@
+好变量名是可读的、易记的和恰如其分的。
+名字要完全、准确地描述出该变量所代表的事物。对事物的描述就是最佳的变量名。
+变量名包含了以下三类信息:
+1. 变量的内容(它代表了什么);
+2. 数据的种类(具名常量,简单变量,用户自定义类型或者类)
+3. 变量的作用域(私有的，类的、包的或者全局作用域)
+
+区分变量名和子程序名字; 区分类和对象
+
+1 选择好变量名的注意事项
+    -> 变量和变量名就本质而言却是同一事物。
+    -> 一个好记的名字反应的通常都是问题，而不是解决方案。一个好名字通常表达的是what而不是how。
+    最适当的名字长度是8-20字符
+    较长的名字适用于很少用到的变量或者全局变量，而较短的名字则适用于局部变量或者循环变量。
+    -> 很多程序都有表示计算结果的变量：总额、平均值、最大值等等。如果你要用类似于total、sum、average、max、min、string
+这样的限定词来修改某个名字，那么请把限定词加到名字的最后。
+    类似 revenueTotal(总收入)、expenseTotal(总支出)、revenueAverage(平均收入)、expenseAverage(平均支出)
+这组名字的变量具有非常优雅的对称性,一致性可以提高可读性，简化维护工作。
+    把计算的量放在名字最后的这条规则也有例外，那就是 Num 限定词的位置已经是约定俗成的。
+    Num 放在变量名的开始位置代表一个总数：numCustomers 表示的是员工的总数。
+    Num 放在变量名的结束位置代表一个下标：customerNum 表示的是当前员工的序号。
+    通过 numCustomers 最后代表复数的 s 也能够看出这两种应用之间的区别。
+    
+    然而，由于这样使用 Num 常常会带来麻烦，因此可能最好的办法是避开这些问题，用 Count 或者 Total 来代表员工总数，
+用 Index 来指代某个特定的员工。这样，customerCount 就代表员工的总数，customerIndex 代表某个特定的员工。
+    -> 变量名中常用的对词：
+      begin/end
+      first/last
+      locked/unlocked
+      min/max
+      next/previous
+      old/new
+      opend/closed
+      visible/invisible
+      source/target
+      source/destination
+      up/down
+    -> 找到更有表现力的词 ++ 编写可读代码的艺术 ++
+    单词    更多选择
+    send    deliver、dispatch、 announce、 distribute、route
+    find    search、extract、locate、recover
+    start   launch、create、begin、open
+    make    create、set up、build、generate、compose、add、new
+
+    x temp current i 需要避免的命名
+    计算机术语 VS 问题领域
+    使用 namespace 关键字来划分全局命名空间
+    int n;                     // 毫无意义.
+    int nerr;                  // 含糊不清的缩写.
+    int n_comp_conns;          // 含糊不清的缩写.
+    int wgc_connections;       // 只有贵团队知道是什么意思.
+    int pc_reader;             // "pc" 有太多可能的解释了.
+    int cstmr_id;              // 删减了若干字母.
+    注意, 一些特定的广为人知的缩写是允许的, 例如用 i 表示迭代变量和用 T 表示模板参数.
+    
+2. 为特定类型的数据命名
+    循环下标: 如果一个变量要在循环之外使用，那么就应该为它取一个比i,j,k,iter更有意义的名字
+              如果你使用了多个嵌套的循环，那么就应该给循环变量赋予更长的名字以提高可读性。
+    状态变量: -> 最好是把标识(flag)可做状态变量，标记的名字中不应该含义flag，因为你从中丝毫看不出该标记是做什么的。
+              为了清楚起见，标记应该用枚举类型、具名常量，或用作具名常量的全局变量来对其赋值，而且其值应该与上面这些量作比较。
+              如果你发现自己需要猜测某段代码的含义的时候，就该考虑为变量重新命名。
+    临时变量名:  -> temp丝毫没有反映该变量的功能。
+              临时变量用于存储计算的中间结果，作为临时占位符，以及存储内存管理值。
+              称为临时的，可能表明你还没有弄清它们的实际用途。
+    布尔变量: -> status和sourcefile是很糟糕的布尔变量名。
+        done：表示某件事已完成。isDone    在事情完成之前把 done 设为 false，在事情完成之后把它设为 true。
+        error：表示有错误发生。isError    在错误发生之前把变量值设为 false，在错误已经发生时把它设为 true。
+        found：表示某个值已找到。isFound  在还没有找到该值的时候 found 设为 false，一旦找到该值就把 found 设为 true
+        success/ok：表示某项操作是否成功。在操作失败的时候把该变量设为 false，在操作成功的时候把其设为 true。
+        ok -> success -> processingComplete 
+        # status 和 sourceFile 这样的名字却是很糟的布尔变量名，因为它们没有明确的 true 或者 false。
+        statusOK    sourceFileAvailable、sourceFileFound，
+        使用肯定的布尔变量名
+    枚举类型: 有人可能说，枚举从本质上而言是一个用户定义类型，因此枚举名字的格式应该与其他用户定义的类型如类相同。
+              与之相反认为，他同时是常量，因此枚举类型的格式应该与常量相同。
+              Color_，Planet_ 或者 Month_ 来表明该类型的成员都同属于一个组
+    常量:常量名应该根据该常量所表示的含义，而不是他所具有的数据来命名。
+    yes no retval(rv) +it 
+    
+    避免使用: tmp、retval、foo泛泛的名字.
+3. 命名规则的力量
+    有效的标准是你所能掌握的最强大的工具之一 规则(convention)
+    规则的存在为你的代码增加了结构，减少了你需要考虑的事情。
+4. 非正式命名规则
+    与语言无关的指导原则
+        区分变量名和子程序名: 变量名以小写字母开始，子程序名称以大写字母开始。 variableName RoutineName()
+        区分类和对象
+        1. 通过大写字母开头区分类型和变量 -> 大小写敏感语言
+          Widget widget;
+          LongerWidget longerWidget;
+        2. 通过全部大写区分类型和变量 -> 全部字母大写只用于表示常量
+          WIDGET widget;
+          LONGERWIDGET longerWidget;
+        3. 通过给类型加"t_"前缀区分类型和变量 -> 很多程序员从审美的角度出发并不喜欢增加前缀
+          t_Widget Widget; 
+          t_LongerWidget LongerWidget;
+        4. 通过给变量加"a"前缀区分类型和变量 -> 需要改变类的每个实例的名字，而不是仅仅修改类名
+          Widget aWidget; 
+          LongerWidget aLongerWidget;
+        5. 通过对变量采取更明确的名字区分类型和变量 -> 要求基于每个变量名的实际情况作出更多的考虑
+          Widget employeeWidget; 
+          LongerWidget fullEmployeeLongerWidget;
+    标识全局变量: 全局变量名之前加上 g_ 前缀
+    标识成员变量: 既不是局部变量，也不是全局变量 m_ 前缀
+    标识类型变量: 类型名增加 t_ 前缀
+    标识具名常量: 常量名增加 c_ 前缀 c_RecesMax 或者 c_LinesPerPageMax
+                  C++ 和 Java 里的规则是全部用大写, RECS_MAX 或者 LINES_PER_PAGE_MAX
+    标识枚举类型的元素: 全部用大写，或者为类型名增加 e_ 或 E_ 前缀. 同时为该类型的成员名增加基于特定类型的前缀，如 Color_ 或者 Planet_
+                表示的是枚举类型，而不是一个变量、具名常量或函数。
+    在不能保证输入参数只读的语言里标识只读参数: 
+                在 C++ 里分别用 *、& 和 const 指明，在 VB 里分别用 ByRef 和 ByVal 指明。
+    格式化命名以提高可读性:用大小写和分隔符来分隔单词
+                GYMNASTICSPOINTTOTAL 就要比 gymnasticsPointTotal 或者 gymnastics_point_total 难读的多
+                对首字母采用小写
+    C语言命名规则
+        c 和 ch 是字符变量。
+        i 和 j 是整数下标。
+        n 表示某物的数量。
+        p 是指针。
+        s 是字符串。
+        预处理宏全部大写(ALL_CAPS)。这通常也包括 typedef。
+        变量名和子程序名全部小写(all_lowercase)。
+        下划线(_)用做分隔符
+    C++ 的命名规则
+        类和其他类型的名字混合大小写
+        变量名和函数名中的第一个单词小写，后续每个单词的首字母大写 —— 例如，variableOrRoutineName。
+        不把下划线（_）用做分隔符，除非用于全部大写的名字以及特定前缀中(如用于标识全局变量的前缀)
+    Java 的命名规则
+        i 和 j 是整数下标。
+        常量全部大写（ALL_CAPS）并用下划线（_）分隔。
+        类名和接口名中每个单词的首字母均大写，包括第一个单词 —— 例如，ClassOrInterfaceName。
+        变量名和方法名中的第一个单词小写，后续单词的首字母大写 —— 例如，variableOrRoutineName。
+        除用于全部大写的名字之外，不使用下划线（_）作为名字中的分隔符。
+        访问器子程序使用 get 和 set 前缀。
+5. 标准前缀 ： 标准化的前缀由两部分组成：用户自定义类型 (UDT) 的缩写和语义前缀
+        UDT 缩写可以标识被命名对象或变量的数据类型。
+        ch      字符(Character)
+        doc     文档(Document)
+        pa      段落(Paragraph)
+        scr     屏幕区域(Screen region)
+        sel     选中范围(Selection)
+        wn      窗体(Window)
+    语义前缀: 它描述了变量或者对象是如何使用的。语义前缀不会根据项目的不同而不同
+        c       数量(count)
+        first   数组中需要处理的第一个元素
+        g       全局变量
+        i       数组的下标
+        last    数组中需要处理的最后一个元素，与first对应
+        lim     数组中需要处理的元素的上限，通常，lim等于last+1
+        m       类一级的变量
+        max     数组或其他种类的列表中绝对的最后一个元素
+        min     数组或其他种类的列表中绝对的第一个元素
+        p       指针(pointer)
+
+6. 创建具备可读性的短名字
+    缩写的一般指导原则
+        使用标准的缩写(列在字典中的那些常见缩写)。
+        去掉所有非前置元音。(computer 变 cmptr，screen 变成 scrn，apple 变成 appl，integer 变成 intgr)
+        去掉虚词 and，or，the等。
+        使用每个单词的第一个或前几个字母。
+        统一地在每个单词的第一、第二或者第三个(选择最合适的一个)字母后截断。
+        保留每个单词的第一和最后一个字母。
+        使用名字中的每一个重要单词，最多不超过三个。
+        去除无用的后缀 —— ing，ed 等。
+        确保不要改变变量的含义
+    记住，名字对于代码读者的意义要比对作者更重要
+        
+        不要用从每个单词中删除一个字符的方式来缩写。
+        缩写要一致 应该一直使用相同的缩写
+        创建你能读出来的名字 用 xPstn,用 needsCompu 而不用 ndsCmptg。
+        避免使用容易看错或者读错的字符组合
+        使用辞典来解决命名冲突 # aspell list + Tranalation Table(Tranalation_Table.txt)
+
+代码的读者可能不理解这些缩写。
+其他程序员可能会用多个缩写来代表相同的词，从而产生不必要的混乱。
+
+7. 应该避免的名字
+    避免使用令人误解的名字或者缩写 要确保名字的含义是明确的。FALSE 常用做 TRUE 的反义词
+    避免使用具有相似含义的名字                               input 和 inputValue，recordNum 和 rumRecords，以及 fileNumber 和 fileIndex
+    避免使用具有不同含义但却有相似名字的变量                 clientRecs 和 clientReps；clientRecords 和 clientReports比原来的名字好。
+    避免使用发音相近的名字，        比如 wrap 和 rap
+    避免在名字中使用数字            要避免使用 file1 和 file2，或者 total1 和 total2
+    避免使用英语中常常拼错的单词    Absense，acummulate、acsend、calender、concieve、defferred、definatte、independance、occassionally、prefered、reciept、superseed
+    不要仅依靠大小写区分变量名      frd 来代表 fired，用 FRD 代表 final review duty，以及用 Frd 来代表 full revenue disbursal。
+    避免使用多种自然语言            使用 “color” 还是 “colour”，“check” 还是 “cheque” 等
+    避免在名字中包含容易混淆的字符  数字 1 和小写字母 l，数字 1 和大写字母 I，数字 0 和大写字母 O
+
+临时标记注释：TODO、FIXME、HACK、OPTIMIZE、REVIEW
+
+标记        意义
+TODO        暂缺的功能和函数，稍后需要增加 /* TODO: How about auto-correcting small spelling errors? */
+FIXME       需要修复的代码 /* FIXME: This won't work if the file is missing. */
+OPTIMIZE    慢或者效率低的代码可能会引起性能问题
+HACK        应该重构的，有问题的编码实践
+XXX         仅为跑通测试或流程而伪造的代码 /* XXX: This method badly needs refactoring: should switch by core type. */
+REVIEW      需要特别关注，确认这段代码能按照期望的正常工作 /* REVIEW: Are we sure this is how the client does X currently? */
+CHANGED
+NOTE        解释下面方法的行为和用途
+
+
+规定格式如下：
+$(scope): $(subject)
+$(description)
+    $(scope)：必需，取决于具体项目，一般为项目目录、模块或组件的名字，用来描述本次 commit 影响的范围（即 where），比如 Node.js 和 Golang 的源码仓库就是如此。
+        使用首字母小写的驼峰格式。
+        嵌套层级结构可以用 / 表示，如 net/http。
+        涉及多个目录、模块或组件可以用 , 隔开（不加空格以节省空间），如 net/http,cmd、net/{tcp,http}（表示 net/tcp 和 net/http）。
+        无意义的层级可省略，比如 Java 项目没必要把 src/main/java/${package} 包含进来，需酌情选择简练而有描述性的表示方式，嵌套层级不要太深。
+        bug、hotfix、task、change、refactor 等等描述的都不是影响的具体范围，而是改动类型，不能用作 scope。
+        除具体的目录、模块或组件名之外，可以使用 base 表示基础结构、框架相关的改动，用 misc 表示杂项改动，用 all 表示大范围重构。
+        后加入项目的新成员应遵循已有的 scope 约定（通过 git log 可以查看某个文件的提交历史或咨询 leader），不要自己编造。
+    $(subject)：必需，描述 what 和 why。
+        50 个字符左右的简要说明，首字母小写，祈使句（即使用动词原型，无时态），不加句号。
+        禁止出现 update code、fix bug 等无实际意义的描述（这种废话写了跟没写一样），好的例子： select connector by sorting free memory （不需要形如 update about how to select connector ... 的啰嗦写法），fix sucess tip can not show on IE8 （不需要形如 fix bug of ... 的啰嗦写法）。
+        一个简单的判断 subject 是否合适的办法：把你的 subject 放到句子 If applied, this commit will xxx 里是否通顺？
+    $(description)：可选，详细说明，建议使用列表罗列要点。

@@ -1,0 +1,103 @@
+c/c++:    gcc+gcov+lcov；（单元测试：CUnit、CPPUnit、Google GTest等）
+linux+ c/c++ +gcc:
+
+gcov/lcov:
+http://ggcov.sourceforge.net
+http://blog.csdn.net/livelylittlefish/article/details/6321861
+http://blog.csdn.net/livelylittlefish/article/details/6321887
+1. gcov是什么？
+Gcov is GCC Coverage
+是一个测试代码覆盖率的工具
+是一个命令行方式的控制台程序
+伴随GCC发布，配合GCC共同实现对C/C++文件的语句覆盖和分支覆盖测试；
+与程序概要分析工具(profiling tool，例如gprof)一起工作，可以估计程序中哪一段代码最耗时； 
+注：程序概要分析工具是分析代码性能的工具。
+ 
+2. gcov能做什么？
+gcov可以统计
+每一行代码的执行频率
+实际上哪些代码确实被执行了
+每一段代码(section code)的耗时(执行时间)
+因此，gcov可以帮你优化代码，当然这个优化动作还是应该有开发者完成。
+
+
+gcc xxx.o -o xxx --coverage 
+gcc xxx.o -o xxx -lgcov 
+gcc xxx.o -o xxx -fprofile-arcs
+
+--coverage, 记得要在编译以及链接的时候加，仅在链接的时候加不会生成相关的文件。
+编译后会生成.gcno文件，运行后会生成.gcda文件，这些是生成分析文件的源文件
+
+.gcno包含了重建基本块图和相应的块的源码的行号的信息。
+.gcda由编译后的文件运行所产生的，它包含了弧跳变的次数和其他的概要信息。
+
+gcov hostd.c
+生成 .cov文件，使用vim打开即可查看
+选项
+-b 分支覆盖
+-a 所有block覆盖
+-f 函数覆盖
+
+gcov，代码覆盖率分析
+    为g++增加编译选项：--coverage。等价于编译选项-fprofile-arcs+-ftest-coverage加上链接选项-lgcov
+    编译完成后，会生成*.gcno文件，里面记录了graph
+    运行程序，会生成包含每行运行次数的数据文件*.gcda
+    执行gcov main.cpp，可以逐文件的根据main.gcda生成main.gcov文件，后者是记载了每行执行次数的文本结果
+
+lcov是什么
+    是GCOV图形化的前端工具
+    是Linux Test Project维护的开放源代码工具，最初被设计用来支持Linux内核覆盖率的度量
+    基于Html输出，并生成一棵完整的HTML树
+    输出包括概述、覆盖率百分比、图表，能快速浏览覆盖率数据
+    支持大项目，提供三个级别的视图：目录视图、文件视图、源码视图
+
+sudo yum install lcov
+使用lcov
+lcov -t "xxx" -o xxx.info -c -d filepath
+-t sets a test name
+-o to specify the output file
+-c to capture the coverage data
+-d to specify the directory where the data files needs to be searched
+
+生成前端显示
+genhtml -o res xxx.info
+
+res ：生成的文件名
+xxx.info : 上一步生成的信息文件
+
+之后打开res下的index.html就可以浏览了
+
+
+gcov hostd.c
+lcov -t hostd -o hostd.info -c -d .
+genhtml -o res hostd.info
+
+--------------------------------------------------------------------------------
+-:    0:Source:test.c
+-:    0:Graph:test.gcno
+-:    0:Data:test.gcda
+-:    0:Runs:1
+-:    0:Programs:1
+-:    1:#include
+-:    2:
+-:    3:int main (void)
+1:    4:{
+-:    5:    int i, total;
+-:    6:
+1:    7:    total = 0;
+-:    8:
+11:    9:    for (i = 0; i < 10; i++)
+1:    9-block  0
+10:    9-block  1
+11:    9-block  2
+10:   10:        total += i;
+-:   11:
+1:   12:    if (total != 45)
+1:   12-block  0
+#####:   13:        printf ("Failure/n");
+-代表不必执行
+数字n代表执行的次数
+
+
+
+    

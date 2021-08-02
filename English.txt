@@ -1,0 +1,190 @@
+https://github.com/caicaishmily/pragmatic-programmer-zh
+https://github.com/likicode/programming_pearls
+https://github.com/Heatwave/the-practice-of-programming
+https://github.com/wonury/the.practice.of.programming
+
+构建 construction
+构建工人 construction worker
+构建板   construction paper
+活动 activity
+非构建活动 nonconstruction activity
+
+定义问题(problem definition)
+需求分析(requirements development)
+规划构建(construction planning)
+软件架构/高层设计(software architecture/high-level design)
+详细设计(detailed design)
+编码与调试(coding and debugging)
+单元测试(unit testing)
+集成测试(integration testing)
+集成(integration)
+系统测试(system testing)
+保障维护(corrective maintenance)
+开发者测试 developer testing
+
+
+病毒 virus
+特洛伊木马 Trojan horse
+蠕虫 worm
+臭虫 bug
+逻辑炸弹 bomb
+崩溃 cursh
+论坛口水战 flame
+致命错误 fatal error
+类比 analogy
+建模 modeling
+隐喻 metaphors
+撞球 bolliard-ball
+属性 properties
+关系 relationships
+计算机为中心 computer-centered
+数据库为中心 database-centered
+
+内在化(internalizing)
+抽象(abstracting)
+
+启示 heuristic
+算法 algorithm
+可预测的 predictable
+确定性的 deterministic
+不易变化的 not subject to chance
+概念化 conceptualizing
+写作 writing
+重用 reuse
+测试用例 test case
+
+写作 writing 
+培植系统 growing
+系统生长 system  accretion
+建造软件 building
+软件的优化(oprimization)
+软件复查(review)
+审查(inspection)
+容器类(container classes)
+基础类 foundation classes
+分离代码 tearing code apart
+随意 sloppy
+范型 paradigm 
+瞄两次，切一次 measure twice,cut once 三思而后行
+增量的(incremental)
+迭代的(iterative)
+自适应的(adaptive)
+演进的(evolutionary)
+虚假的类 dummy classes
+
+
+产品设想 product vision，
+设想陈述 vision statement，
+任务陈述 mission statement
+产品定义 product definition。
+问题定义 problem definition
+
+需求开发 requirements development，
+需求分析 requirements analysis，
+分析     analysis，
+需求定义 requirements definition，
+软件需求 software requirements，
+规格书    specification，
+功能规格书 functional spec，
+规格     spec。
+
+系统架构 system architecture，
+高层设计 high-level design 或
+顶层设计 top-level design。
+
+欠描述   underspecifying 
+过度描述 overspecifying 
+过度设计 overdesigned
+
+最小的复杂度 Mininmal Complexity
+易于维护 Ease of maintenance
+松散耦合 loose coupling
+可扩展性 extensibility
+可重用性 rehsability
+高扇入(high fan-in)
+低扇出 low fan-out
+可移植性 portability
+精简性   leanness
+层次性   stratification
+标准技术 standard techniques
+
+
+抽象数据类型(abstract data type) 
+数组(array) 
+位图(bitmap)
+布尔变量(boolean variable) 
+B-树(B-tree) 
+字符变量(character variable)
+容器类(container class) 
+双精度(double precision)
+枚举类型(enumerated type) 
+浮点(floating point)
+堆(heap) 
+下标(index) 
+整数(integer) 
+链表(linked list) 
+具名常量(named constant)
+文字量(literal) 
+局部变量(local variable) 
+查找表(lookup table)
+数据成员(member data) 
+指针(pointer) 
+私用(private) 
+引用完整性(referential integrity) 
+栈(stack) 
+字符串(string)
+结构变量(structured variable) 
+树(tree) 
+共用(union)
+变体(variant)
+
+就近原则(Principle of Proximity)
+
+
+计数器(counter) 
+累加器(accumulator)
+
+内存访问检查工具(memory-access checker)
+工作内存(working memory)
+可见性(visibility)
+包(package)
+命名空间(namespace)
+
+存活时间(live time)
+
+类 class 
+子程序 routine 
+变量 variable 
+具名变量 named constant 
+控制结构 control sturcture
+调整代码 tuning code
+
+循环下标 Naming Loop Indexes
+状态变量 Naming Status Variables
+
+常量 Constants
+布尔变量 Boolean Variables
+枚举类型 Enumerated Types
+状态变量 Status Variables
+循环下标 Loop Indexes
+
+前条件 precondition 
+后条件 postcondition  
+契约式设计 design by contract
+
+规则 convention
+非正式命名规则 Informal Naming Conventions
+
+神秘字符 magic character
+字符 literal character 
+神秘字符串 magic string
+字符串 literal string
+
+
+apart from 除了…外（都）；要不是；除了…外（还）；此外
+校准 calibration 
+并发的 concurrent
+立即；立刻；马上 instantly
+扼要重述；概括；回顾 recap
+列举 枚举 enumerated
+协调，调节 co-ordinate

@@ -1,0 +1,17 @@
+1. 结构体 ： C/C++中允许用户定义一组包含若干个类型不同(或相同)的数据项的数据类型，称之为结构体。
+    
+2. 指针
+    把指针操作限制在子程序或者类里面
+    同时声明和定义指针
+    在与指针分配相同的作用域中删除指针
+    在使用指针之前确保指针所指向的内存位置是合理的
+    
+    
+    
+    
+    
+    https://github.com/apollowangjunbo/Code-Complete-reading-note
+    https://github.com/zaOne101/Code-Complete
+    https://github.com/raytaylorlin/raytaylorlin-blog/blob/3683e9208d52cebbe0ee97d6ca732c035c72415c/source/_posts/tech/complex/software/software-construction-5.md
+    https://github.com/Lvhaoyu/hexo/tree/e33c013082a5ab4f4e2d779202c617d4119147ee/source/_posts/%E7%BC%96%E5%86%99%E5%8F%AF%E8%AF%BB%E4%BB%A3%E7%A0%81%E7%9A%84%E8%89%BA%E6%9C%AF
+

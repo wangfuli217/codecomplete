@@ -1,0 +1,47 @@
+# 简单if语句
+    1-首先写正常的语句路径，再处理不常见的情况；(并非说，布局上 if(ok) 正常执行代码 else 异常执行代码. 而是先考虑写正常执行代码。)
+    在编写代码时，要是的正常情况的执行路径在代码中是清晰的。确认那些不常见的情况不会遮掩正常的执行路径。 -> 可读性
+    2-确保对于等量的分支是正确的，防止off-by-one错误。 (请不要用 > 替代 >=; 或用 < 替代 <=)
+    3-把正常的处理情况，放在if 后面；
+    4-让if 后面跟着有意义的语句； if(someTest) {;} else {do someting};
+    5- -> 多考虑else情况，      如果你认为自己只需要一个简单的if语句，那么请考虑你是否真的不需要一个if-then-else语句。
+        测试else正确性，        如果有可能测试else子句的话，也一定要测试它。 (shunit2通过hostd测试rtud程序)
+        检查if，else有没有反
+        // safely ignore command
+
+# if-then-else 语句串
+    1.利用布尔函数调用简化复杂的测试(可读性)
+    2.把最常见的情况放在最前面(代码可读性和代码效率)
+    3.确保所有情况都已经考虑到(写一个放在最后的else子句，用出错消息或者断言来捕捉那些你不考虑的情况)
+    4.如果可以使用case语句，尽量使用case语句；fork调用。
+
+
+case 语句 Java和C++只支持有序整数 (int类型) ->  case : 枚举类型、宏定义、ASCII字母使用场合更多
+    1、为case语句选择最有效的排列顺序，按字母排序，或者正常的情况放在最前面，或者执行平路最高的放在前面 
+    2、简化每种情况对应的操作，操作复杂的应该放到单独的方法里面 
+    3、不要为了使用case语句去刻意制造一个变量 
+    4、-> default语句只用于检查真正的默认情况，而不是用来处理最后一种情况 (处理的整全性)
+    5、-> 利用default语句来检查错误 (与其让系统崩溃或者产生看似正确，不如让用户们看到"内部错误，请致电客户支持")
+    HandleUserInputError(ErrorType.InvalidUserCommand);
+    HandleUserInputError(ErrorType_InvalidCommandInput);
+    DisplayInternalError("Interna; Error 905: Call customer support.");
+    DisplayInternalError("Unexpected type of character detected.");
+    6、-> 在C++和Java里，避免代码执行越过一条case子句的末尾。
+          在C++和Java里，在case末尾明确无误地表明需要执行的程序流程。 (github 搜索  FAILTHROUGH+switch+case)
+    如果你故意让代码越过某一个case子句的末尾，那么，就在相应的位置给出明确的注释，解释为什么要这些编写代码。
+
+
+switch (chunk_parse_rep_list(repstr,MaxWriteRepl))                                           switch中调用函数
+while ((ch = getopt(argc, argv, "i:r:f:p:s:x:y:hHd?")) != -1) { switch(ch) optarg optint  }  简单解析(外层调用函数)
+matoclserv_gotpacket(eptr,ipack->type,ipack->data,ipack->leng) { switch(type) handler() }    处理函数
+switch (eptr->hlstatus) { hlstatus_name = "DEFAULT"; | hlstatus_name = "OK";}                简单赋值
+moosefs charts.c charts_data_multiplier( 简单计算 )
+
+moosefs bgjob.c job_worker 中处理函数，关注处理结果返回值。 -- rtud(lms)中 rtumgtslot.c 中 gotpacket函数存在类似情况，-> 数据表驱动更好？
+
+
+2、简化每种情况对应的操作，操作复杂的应该放到单独的方法里面 
+moosefs bgsaver.c bgsaver_worker() 命令处理在函数中，复杂度...
+moosefs csdb.c    csdb_mr_op()     处理全局变量，    复杂度...               switch + return
+moosefs matoclser.c matoclserv_fuse_register()       处理注册，    复杂度... switch + return
+beansdb beansdb.c drive_machine()  根据状态处理数据  复杂度...               continue + break + return
