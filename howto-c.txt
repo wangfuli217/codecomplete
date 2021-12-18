@@ -1,0 +1,419 @@
+# https://matt.sh/howto-c #  https://github.com/jixiaod/jixiaod.github.io/source/_posts/how-to-c-in-2016.md
+# https://github.com/Keith-S-Thompson/how-to-c-response/blob/master/README.md
+# https://blog.erratasec.com/2016/01/some-notes-c-in-2016.html
+# www.client9.com/article/how-to-program-in-c/
+# https://matt.sh/files/howtoc/howto-c-programmer-magazine.pdf
+
+每个人都坚持的认为自己最开始学习部分才是正确的,这样使得写C的开发人员对C语言的开发有着不同的理解。
+C语言的首要原则是——能不写C语言就不写。如果一定要写,请遵守现代规则。 <-推荐-> 最新的平台且使用最新的标准
+
+-------------------------------------------------------------------------------- 准备  编译器: https://clang.llvm.org/docs/index.html ; man gcc
+      标准        性能           代码编写:告警        测试阶段:告警                           额外选择:告警(gcc-5)
+clang -std=c99 [-O2 -Os] -Wall -Wextra -Wpedantic   -Werror -Wshadow   -Wstrict-overflow -fno-strict-aliasing -Wno-missing-field-initializers
+[标准]   C99是 clang 的默认 C 实现，不需要额外的选项; clang 3.5 =C99; clang 3.6=C11   <-切记->  如果指定标准: -std=cNN -pedantic.  gnu11是 gcc-5 的默认 C 实现
+C99标准(C99和C11分别是指1999年和2011年诞生的C语言标准,显然C11标准比较新)           clang支持标准: c89, gnu89, c94, c99, gnu99, c11, gnu11, c17, gnu17, c2x, gnu2x
+clang(一种C语言编译器),默认标准: -std=gnu99 clang的选项覆盖了gcc的选项            1. 默认标准: -std=gnu89   2. C99标准: -std=c99 3. GNU扩展C99标准 -std=gnu99 GNU对C语言标准的扩展见: ccheat/t/attribute 和 ccheat/cpp-cheat/gcc/attribute.c
+clang使用C11的一种扩展版本(GNU C11模式),所以对最新的特征编译不需要额外的参数配置。   gcc需要指定-std=c99 或-std=c11; -std=gnu99 或-std=gnu11; 
+1. 如果你想使用标准的C11,需要指定-std=c11；                                      1. gcc构建源文件的速度一般慢于clang,但某些时候却能保证编码速度更快。性能比较和回归测试也非常重要。
+2. 如果你想使用标准C99,则指定-std=c99。                                          2. gcc-5默认使GNU C11模型(与clang相同),但如果你确切地需要C11或C99,仍应指定-std=c11或-std=c99。
+3. clang vs gcc的代码编译速度和编译出代码执行速度依赖: 性能对比和回归测试很重要
+
+[优化]
+-O2,-O3  ： 通常想使用-O2,但有时也使用-O3。在两个级别下(通过clang和gcc编译器)分别进行测试并且保持最佳性能: -O2和-O3选项性能优略,要通过测试验证: clang和gcc编译器.
+-Os      ： 如果你写代码时，有考虑到缓存效率的话，会有帮助
+
+[警告]
+-wall -Wextra -pedantic : 更新版本的编译器已经有 -Wpedantic, 同时这些编译器还在支持 -pedantic 以保证向后的兼容性。
+-Werror -Wshadow        : 测试时，所有平台都要加上。 如果在最终的正式代码编译时加上-Werror，情况会变得很微妙。因为不同的平台、编译器和类库会提示不同的警告。因为不同平台GCC版本问题，出现一些意想不到的提示，让编译到一半的程序终止是大家都不想看到的。
+-Wstrict-overflow -fno-strict-aliasing: 其他的不错的选项
+要么指明 -fno-strict-aliasing，要么确定访问的指针从它们创建开始类型一值不变。使用 -fno-strict-aliasing 是更佳稳妥的方式，因为现存的C代码中，用到强制类型转换的地方还是挺多的。
+[注：Strict aliasing 是C或C++编译器的一种假设：不同类型的指针绝对不会指向同一块内存区域]
+-Wno-missing-field-initalizers:         现在，Clang 对于一些正当的语法也会报警告，所以你需要添加 -Wno-missing-field-initalizers
+GCC 在 4.7.0 版本之后修正了这些不必要的警告。
+
+-------------------------------------------------------------------------------- 构建 -flto
+[隔离原则] (Compilation units 编译单元) 
+构建C项目的通常办法是拆分每一个源文件编译成一个个目标文件，最后再把所有的目标文件link到一起。这个做在进行开发时是非常好的方法，但是对于代码的性能和优化就不太友好了。用这种方法，编译器不能发现一些存在在文件边界之间的潜在优化点。
+
+[LTO] - Link Time Optimisation(链接时的优化)
+LTO 解决了“被分离的源代码文件分析和优化的问题”。通过中间语言来标注编译生成的目标文件，所以LTO能够在链接的时候实现代码优化。
+1. LTO 明显的降低了链接过程的速度，但是使用 make -j 可以有所改善，如果你的构建的的文件包含很多并不相互依赖的目标文件(.a, .so, .dylib, 测试可执行文件，应用程序可执行文件等)
+2. clang LTO (http://llvm.org/docs/LinkTimeOptimization.html)
+3. gcc LTO   (https://gcc.gnu.org/onlinedocs/gccint/LTO-Overview.html)
+在2016年，clang 和 gcc 支持 LTO 只需要在编译目标文件和最终链接库和程序时，加上 -flto 到命令行的选项。
+LTO 仍然需要被细心看管。有时，你的程序有部分代码被当作附加库，没有被直接使用。在链接时，LTO 会放弃部分函数或代码，因为LTO检查到这些代码没有被使用，不需要被包含到最终的链接结果中。
+
+[架构]
+-march=native
+1. 允许编译器使用CPU完整的特性集。
+2. 再一次强调，性能测试和回归测试很重要(比较不同编译器且不同编译器版本的性能)。确保性能提升的同时没有带来问题。
+-msse2 和 -msse4.2 如果你需要的编译结果不是根据"你自己编译环境"的特征。
+
+-------------------------------------------------------------------------------- 编写代码:类型系统  stdint.h stddef.h inttypes.h stdbool.h
+如果你写C代码还是使用 char、int、short、long、unsigned，那么你已经是在犯错误了
+
+[stdint.h] <-推荐-> stdint.h stdbool.h
+类型: char  int  short  long  unsigned <-推荐-> #include <stdint.h>  #stdint规范: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/stdint.h.html
+int8_t, int16_t, int32_t, int64_t                           — 有符号的整型
+uint8_t, uint16_t, uint32_t, uint64_t                       — 无符号的整型
+float double                                                — 标准32位浮点数 标准64位浮点数 IEEE 32-bit/IEEE 64-bit; 不能保证float就是标准32位浮点数
+
+[char vs int8_t uint8_t]  <-推敲-> char
+注意，char 已经不存在了。char 在C语言中经常是一个误称，且被误用了
+char类型是byte? 甚至用在无符号表达式     <-推荐-> uint8_t: 无符号字节/8位字节值; uint8_t* 无符号字节/8位字节值序列
+@ 永远不要使用 char 的一个特例
+唯一接受使用 char 类型的场景是，加入已经存在的 API 需要 char 类型(例如strncat、printf函数中的“%s”占位符等)或者
+如果在初始化只读字符串(例如 const char *hello = "hello";)，因为字符串("hello")的 C 类型是 char []。
+而且：在C11中增加了本地 unicode 支持，对于像 const char *abcgrr = u8"abc";多字节UTF-8字符串 类型仍然是 char [] 。
+如果要假定字节是八位字节，请将类似这样的内容添加到代码中。
+#include <limits.h>
+#if CHAR_BIT != 8
+    #error "This program assumes 8-bit bytes"
+#endif
+
+[特殊的标准类型]   <-推敲-> fast 和 least 类型
+作为标准固定长度的 uint16_t 和 int32_t，我们也有 fast 和 least 类型，可以在 stdint.h specification 看到他们的定义。
+int_fast8_t, int_fast16_t, int_fast32_t, int_fast64_t       — 有符号的整型
+uint_fast8_t, uint_fast16_t, uint_fast32_t, uint_fast64_t   — 无符号的整型
+
+[fast快速类型]  <-推敲-> int_fast8_t
+快速类型提供了一个最小的占用 X 位的字节数，但是不能保证代码要求大小与真正需要的存储的大小一致。如果在你的目标平台有更大的类型被更好的支持，fast类型将会自动去选择这个的更大类型。
+有个非常好的例子，在一些 64 位系统中，当你需要 uint_fast16_t，最终会使用 uint64_t。因为处理一个字量长度的整型将会比操作32位一半(16位)的整型要快得多。
+但是并不是在所有的系统，都这样遵循 fast 类型的原则。 OSX 就是一个特例，fast 类型被定义成跟他对应的固定长度小大是一致的。 # https://opensource.apple.com/source/xnu/xnu-1456.1.26/EXTERNAL_HEADERS/stdint.h
+
+快速类型在自描述代码中也是有用的。如果你知道你的计数器只需要16位，但是你更希望你的计算能够使用64位。因为64位在你的平台速度更快，这是使用uint_fast16_t 就会很有用。
+在64位 Linux 平台下，uint_fast16_t 会实际使用更快的64位计数器，而在代码层面"这里只需要16位"。
+关于快速类型还需要注意的是：它会影响一些测试用例。如果你需要测试存储位宽或边界的情况(edge cases)，使用 uint_fast16_t 会增加你需要测试通过的平台数量(以保证测试覆盖)，在一些平台(OS X)是16位，另外一些平台(Linux)是64位。
+快速类型和 int 一样引入不确定，在不同平台，有不确定的标准长度。 但是对于快速类型，你能够在代码中限制这种不确定性到安全位置(计数器、有边界检测的临时变量)。
+
+[最小类型]  <-不推荐-> unsigned
+    有符号整型：int_least8_t, int_least16_t, int_least32_t, int_least64_t
+    无符号的整型：uint_least8_t, uint_least16_t, uint_least32_t, uint_least64_t
+
+最小类型提供给你申请类型的最紧凑的字节位。事实上，最小类型规范是指最小类型只是定义标准固定宽度类型，因为标准款度类型已经提供了确切的对应的最小字节数。
+
+[要不要使用 int 类型] <-推敲-> int
+同见 RATIONALE 中的 inttypes.h，就是为了解决非固定位宽度的不安全问题。如果你真的足够聪明理解在开发过程中，int 在一些平台是16位，在其他平台是32位。同时在所有使用 int 的地方都对16位和32位的边界进行了测试，那么请放心使用int。
+对于那些其他hold不住所有多层决策树平台规范结构的人，我们可以使用固定宽度的类型。这样就能写出更加正确的代码，减少需要理解概念的困扰，并且减少需要做过多测试的麻烦。
+IOS C 标准整型提升规则能够造成不可预期的静默修改
+@ 永远不要使用{int，long等}的一个特例
+如果你调用函数时使用它其作为原本的返回类型或原本的参数，参照使用函数原型或API文档中说明的类型。
+
+[符号]  <-废弃-> unsigned
+任何情况下，都不应该在代码中输入 unsigned 字符。我们现在可以在写代码时改掉使用丑陋的多词组合类型的习惯，它既影响代码的可读性，也影响使用。
+当你能使用 uint64_t时，谁还想去输入 unsigned long long int? stdint.h 头文件中的类型更加明确，表达也更准确，传达意图也更好，而且代码排版使用更好，可读性更强。
+
+[整型指针] long <-推荐-> intptr_t intptr_t ptrdiff_t
+运算时，正确的指针类型是定义在 <stdint.h> 头文件中的 uintptr_t，同时也可以用 stddef.h 头文件中的 ptrdiff_t。
+long diff = (long)ptrOld - (long)ptrNew;
+<-推荐->
+ptrdiff_t diff = ptrOld - ptrNew;                        # 根据指针类型计算偏移量
+ptrdiff_t diff = (char*)ptrOld - (char*)ptrNew;          # 根据char类型计算偏移量
+ptrdiff_t diff = (uintptr_t)ptrOld - (uintptr_t)ptrNew;  # 根据uintptr_t类型计算偏移量
+printf("%p is unaligned by %" PRIuPTR " bytes.\n", (void *)p, ((uintptr_t)somePtr & (sizeof(void *) - 1)));
+
+[依赖系统类型指针] long <-推荐-> intptr_t intptr_t ptrdiff_t
+如果继续争论，"在32位平台我要使用32位long类型，64位平台我要使用64位long类型！"
+如果我们先忽略你在不同平台使用不同大小的类型的动机时，你也许是故意给编写代码制造困难，但你依然不希望为了系统相关类型去使用 long 类型。
+在这种情况下，你应该使用 intptr_t 当前平台存储一个指针值的整型类型。
+在现代的32位平台，intptr_t 是 int32_t 类型。
+在现代的64位平台，intptr_t 是 int63_t 类型。
+还有，intptr_t 对应 uintptr_t 类型。
+对于指针偏移量，我们有一个更适合的类型 ptrdiff_t，它是存储指针差值的正确类型。
+
+[依赖系统:最大值存储问题] int64_t uint64_t <-推荐-> intmax_t uintmax_t
+你是否需要一个能存储任何整数的整型类型吗？
+此时，人们倾向于使用已知类型中的最大类型，比如转换较小的无符号类型到 uint64_t，但是有更多的技术上正确的方法来确保一个值可以存储为另一个值。
+对于任意的整数，最安全的容器就是 intmax_t (uintmax_t也可以)。你能够在不损失精读的情况下，赋值或转换有符号的整数为 intmax_t。并且也能够在不损失精读的情况下，赋值或转换无符号的整数为uintmax_t。
+
+[其他类型]  <-推敲-> size_t ssize_t
+应用最广泛的系统相关类型是 size_t， 它由 stddef.h 头文件提供。
+size_t 基本表示为"能够存储数组最大索引的整数"，同时它也表示程序中能够存储内的存最大偏移量。
+在实际应用中，size_t 是 sizeof 操作符的返回类型。
+无论在哪种情况下：在所有平台，size_t 实际上的定义都跟 uintptr_t 是一样的，所以在32位平台 size_t 是 uint32_t，在64位平台 size_t 是 uint64_t。
+还有 ssize_t，它表示一个有符号的 size_t，用于库函数的返回值，出错时返回 -1 (注意： ssize_t 是 POSIX 中的定义，在windows接口中不可用。)
+那么，我们可以在任意的系统相关类型的函数参数中都使用 size_t 吗？技术上来说，size_t 是 sizeof 的返回类型，所以任何接受字节数大小值的函数都可以使用 size_t。
+还有其他的一些使用方法：size_t 可以是malloc的参数，并且 ssize_t 是 read()和 write() 的返回类型(除了windows平台，ssize_t 不存在，返回值只是 int)。
+
+[打印类型] <-推荐-> size_t - %zu; ssize_t - %zd; ptrdiff_t - %td; int64_t - "%" PRId64 / PRI[udixXo]64; intptr_t - "%" PRIdPTR; uintptr_t - "%" PRIuPTR; intmax_t - "%" PRIdMAX; uintmax_t - "%" PRIuMAX
+在打印时，不能做类型转换。
+通常需要选择使用正确的说明符，在 inttypes.h 中被定义。
+包括，但不限于：
+    size_t      - %zu
+    ssize_t     - %zd
+    ptrdiff_t   - %td
+    原始指针的值 - %p (现代的编译器中打印16进制；先转换指针为 (void *))
+    int64_t     - "%" PRId64
+    uint64_t    - "%" PRIu64
+        64位类型打印时，只需要使用 PRI[udixXo]64 的宏打印。
+        在一些平台下，64位值是 long 类型，然而在一些其他的平台上是 long long。这些宏提供正确的跨平台规定的格式规范。
+        如果不使用这些宏，事实上是不可能指定一个正确的跨平台格式化字符串的，因为类型类型发生了变化。因为类型变换(请记住，打印之前转换值类型是不安全的，也不和逻辑)
+    intptr_t    - "%" PRIdPTR
+    uintptr_t   - "%" PRIuPTR
+    intmax_t    - "%" PRIdMAX
+    uintmax_t   - "%" PRIuMAX
+    
+关于 PRI* 格式说明符的一个注释：它们是宏，并且宏在特定平台上扩展为正确的 printf 类型说明符。这意味着你不能做：
+printf("Local number: %PRIdPTR\n\n", someIntPtr);
+但是因为它们是宏，你可以：
+printf("Local number: %" PRIdPTR "\n\n", someIntPtr);
+注意你需要把 % 写在格式字符串文字中，但是类型说明符是在格式字符串文字之外。因为所有相邻字符串被预处理器连接成一个最终的字符串。
+
+还有另一种选择，这意味着您不必记住宏名称：
+some_signed_type n;
+some_unsigned_type u;
+printf("n = %jd, u = %ju\n", (intmax_t)n, (uintmax_t)u);
+-------------------------------------------------------------------------------- 编写代码:复合初始化和复合字面量
+[C99 允许在任何地方定义变量] <-推荐->
+void test(uint8_t input) {
+    uint32_t b;
+
+    if (input > 3) {
+        return;
+    }
+
+    b = input;
+}
+<-推荐->
+void test(uint8_t input) {
+    if (input > 3) {
+        return;
+    }
+    uint32_t b = input;
+}
+
+[C99 允许在 for 循环中定义计数器] <-推荐->
+uint32_t i;
+    for (i = 0; i < 10; i++)
+<-推荐->
+for (uint32_t i = 0; i < 10; i++)
+
+[现代的编译器支持 #pragma once] <-不推荐->
+#ifndef PROJECT_HEADERNAME
+#define PROJECT_HEADERNAME
+.
+.
+.
+#endif /* PROJECT_HEADERNAME */
+<-推荐->
+#pragma once
+#pragma once 告诉编译器只引入头文件一次，你不再需要用头文件中的三行预处理命令来确保。pragma 预处理命令已经被所有平台所有编译器支持，推荐使用。
+支持的预处理器列表 : https://en.wikipedia.org/wiki/Pragma_once
+
+[C 允许静态自动分配初始化数组] <-推荐->
+uint32_t numbers[64];
+    memset(numbers, 0, sizeof(numbers));
+<-推荐->
+uint32_t numbers[64] = {0};
+
+[C 允许静态自动分配初始化结构体] <-推荐->
+struct thing {
+    uint64_t index;
+    uint32_t counter;
+};
+struct thing localThing;
+void initThing(void) {
+    memset(&localThing, 0, sizeof(localThing));  # memset不能保证float类型等于0.0, 保证指针值为NULL
+}
+<-推荐->
+struct thing {
+    uint64_t index;
+    uint32_t counter;
+};
+struct thing localThing = {0};
+重要提示：如果结构体有填充，{0} 将不能把多余的填充字节置为零。
+举例来说，stuct thing 在 counter 之后有4字节填充(在64位平台)，因为结构体被按照字节大小来填充。
+如果需要使整个结构体置为零，包括未使用的填充字节，使用 memset(&localThing, 0, sizeof(localThing))，因为sizeof(localThing) == 16 bytes，即使可寻址内容只有 8 + 4 = 12 bytes。
+如果需要重新初始化一个已经分配内存的结构体，可以定义一个全局的空结构体，然后赋值：
+struct thing {
+        uint64_t index;
+        uint32_t counter;
+    };
+    static const struct thing localThingNull = {0};
+    struct thing localThing = {.counter = 3};
+    localThing = localThingNull;
+如果你运气不错在C99(或更新)环境，可以使用复合字面量来代替保存一个全局空结构体。
+
+复合字面量允许你的编译器自动的创建临时匿名结构体，然后复制它们给一个目标值。 # www.drdobbs.com/the-new-c-compound-literals/184401404
+localThing = (struct thing){0};
+
+[C99 增加可变长数组支持(C11 将其设置为可选)] <-推敲->
+uintmax_t arrayLength = strtoumax(argv[1], NULL, 10);
+void *array[];
+array = malloc(sizeof(*array) * arrayLength);
+/* remember to free(array) when you're done using it */
+<-推荐->
+uintmax_t arrayLength = strtoumax(argv[1], NULL, 10);
+void *array[arrayLength];
+重要警告：可变长数组跟普通数组一样(通常)是分配在栈上的。如果你不能静态的创建一个300w个元素的常规数组，那么也不要在运行时用这个语法尝试创建一个300w个元素的数组。
+
+-------------------------------------------------------------------------------- 编写代码:参数类型
+[C99 允许标注非重叠指针参数] 参见 restrict keyword(通常为 __restrict) # https://en.wikipedia.org/wiki/Restrict
+
+[参数类型]  通过声明输入类型为 void *，然后在函数内部重新赋值，重新转换成期望实际类型，可以减少函数调用者对函数内部抽象的猜想
+如果一个函数接受任意的输入数据和将要执行的长度，则不要限制参数类型。
+void processAddBytesOverflow(uint8_t *bytes, size_t len) {
+    for (uint32_t i = 0; i < len; i++) {
+        bytes[0] += bytes[i];
+    }
+}
+<-推荐->
+void processAddBytesOverflow(void *input, size_t len) {
+    uint8_t *bytes = input;
+
+    for (uint32_t i = 0; i < len; i++) {
+        bytes[0] += bytes[i];
+    }
+}
+函数的输入类型描述了代码的接口，而不是代码如何处理这些参数。
+上面代码中的接口表示"接受一个字节数组和数组的长度"，所以不用限制调用者只能传入 uint8_t 字节流。或许用户甚至希望能够传入更老的 char * 类型或者其他不能预期的值。
+
+-------------------------------------------------------------------------------- 编写代码:返回参数类型
+C99 提供了强大的头文件 <stdbool.h>，其中定义了 true 是 1， false 是 0 。
+对于成功／失败的返回类型，函数需要返回 true 或 false，而不是人为的指定一个1或0的 int32_t 的返回类型(或者更糟糕，1 和 -1(或 0 代表成功，1 代表失败？或 0 代表成功，-1 代表失败？))。
+
+如果函数会在参数无效的范围内修改了输入参数，而不是返回修改后的指针。那么应该将整个API中可能会被修改成无效的参数都强制使用双指针。
+在大规模使用中，用"对于某些接口，返回值使输入无效"的方式写代码，非常容易出错。
+因此，不要这么写代码：
+
+void *growthOptional(void *grow, size_t currentLen, size_t newLen) {
+    if (newLen > currentLen) {
+        void *newGrow = realloc(grow, newLen);
+        if (newGrow) {
+            /* resize success */
+            grow = newGrow;
+        } else {
+            /* resize failed, free existing and signal failure through NULL */
+            free(grow);
+            grow = NULL;
+        }
+    }
+
+    return grow;
+}
+<-推荐->
+/* Return value:
+*  - 'true' if newLen > currentLen and attempted to grow
+*    - 'true' does not signify success here, the success is still in '*_grow'
+*  - 'false' if newLen <= currentLen */
+bool growthOptional(void **_grow, size_t currentLen, size_t newLen) {
+    void *grow = *_grow;
+    if (newLen > currentLen) {
+        void *newGrow = realloc(grow, newLen);
+        if (newGrow) {
+            /* resize success */
+            *_grow = newGrow;
+            return true;
+        }
+
+        /* resize failure */
+        free(grow);
+        *_grow = NULL;
+
+        /* for this function,
+         * 'true' doesn't mean success, it means 'attempted grow' */
+        return true;
+    }
+
+    return false;
+}
+<-推荐->
+typedef enum growthResult {
+    GROWTH_RESULT_SUCCESS = 1,
+    GROWTH_RESULT_FAILURE_GROW_NOT_NECESSARY,
+    GROWTH_RESULT_FAILURE_ALLOCATION_FAILED
+} growthResult;
+
+growthResult growthOptional(void **_grow, size_t currentLen, size_t newLen) {
+    void *grow = *_grow;
+    if (newLen > currentLen) {
+        void *newGrow = realloc(grow, newLen);
+        if (newGrow) {
+            /* resize success */
+            *_grow = newGrow;
+            return GROWTH_RESULT_SUCCESS;
+        }
+
+        /* resize failure, don't remove data because we can signal error */
+        return GROWTH_RESULT_FAILURE_ALLOCATION_FAILED;
+    }
+
+    return GROWTH_RESULT_FAILURE_GROW_NOT_NECESSARY;
+}
+
+-------------------------------------------------------------------------------- 编写代码:格式
+2016年唯一可用的C格式化工具是 clang-format。clang-format 拥有最好的自动C格式化的默认参数，并且现在仍然处于活跃的开发阶段。
+下面是我个人惯用的运行clang-format 的脚本，包含一些不错的参数：
+#!/usr/bin/env bash
+clang-format -style="{BasedOnStyle: llvm, IndentWidth: 4, AllowShortFunctionsOnASingleLine: None, KeepEmptyLinesAtTheStartOfBlocks: false}" "$@"
+
+alias cleanup-format-c='cleanup-format -i *.{c,h,cc,cpp,hpp,cxx}'
+参数 -i 会将格式化后的内容覆盖原文件，而不是写入新文件或创建备份文件。
+如果有很多文件，你可以并行的递归处理整个源码树：
+
+如果有很多文件，你可以并行的递归处理整个源码树：
+#!/usr/bin/env bash
+
+# note: clang-tidy only accepts one file at a time, but we can run it
+#       parallel against disjoint collections at once.
+find . \( -name \*.c -or -name \*.cpp -or -name \*.cc \) |xargs -n1 -P4 cleanup-tidy
+
+# clang-format accepts multiple files during one run, but let us limit it to 12
+# here so we (hopefully) avoid excessive memory usage.
+find . \( -name \*.c -or -name \*.cpp -or -name \*.cc -or -name \*.h \) |xargs -n12 -P4 cleanup-format -i
+
+cleanup-format-rr(){
+# note: clang-tidy only accepts one file at a time, but we can run it
+#       parallel against disjoint collections at once.
+find . \( -name \*.c -or -name \*.cpp -or -name \*.cc \) | xargs -n1 -P4 cleanup-tidy
+
+# clang-format accepts multiple files during one run, but let's limit it to 12
+# here so we (hopefully) avoid excessive memory usage.
+find . \( -name \*.c -or -name \*.cpp -or -name \*.cc -or -name \*.h \) | xargs -n12 -P4 cleanup-format -i
+}
+
+cleanup-tidy(){
+clang-tidy \
+    -fix \
+    -fix-errors \
+    -header-filter=.* \
+    --checks=readability-braces-around-statements,misc-macro-parentheses \
+    $1 \
+    -- -I.
+}
+    readability-braces-around-statements - 强制 if / while / for 所有语句都使用大括号包起来
+        C 允许循环和条件后的单语句用“可选大括号”是一个历史事故。现在写代码时，循环和条件语句之后不使用大括号是不可原谅的事情。不要用“但是，编译器允许啊！”的借口争辩，
+        对于代码可读性、可维护性、可理解性和可跳过性没有任何好处。你写代码不是为了取悦编译器，而是为了将来维护你代码的人，那时他们并不知道当时你为什么会存在这样的代码。
+    misc-macro-parentheses - 自动为宏中使用的所有参数加上括号。
+
+clang-tidy 非常好用，但是对于一些复杂的代码可能会有问题。还有，clang-tidy 并没有做格式化的工作，所以你需要在整理代码之后，运行 clang-format 来整理新的大括号和重新推到宏。
+
+
+-------------------------------------------------------------------------------- 文件结构
+源码文件尽量限制行数在1000行以内（1500行就已经是很糟糕的情况了）。如果也包含在原文件中（为了测试静态函数等），尽量调整这种情况。
+
+-------------------------------------------------------------------------------- 永远不要使用 malloc
+尽量使用 calloc，获取零内存没有性能损失。如果你不喜欢 calloc(object count, size per object) 的函数原型，可以封装下 #define mycalloc(N) calloc(1, N)。
+
+不像 malloc()，calloc() 可以检查整型溢出是它的一个优势，因为它会将其参数做乘法，以确认最终需要分配的内存大小。
+如果只是需要分配很小的内存，对 calloc() 封装没有问题。如果是要分配潜在无边界的数据流数据的内存，你可能需要使用原生的常规方法 calloc(element count, size of each element)，以方便实用。
+
+有关 calloc() 如何为你干净内存的参考，可以阅读以下文章：
+    Benchmarking fun with calloc() and zero pages (2007)   # https://blogs.fau.de/hager/archives/825
+    Copy-on-write in virtual memory management             # https://en.wikipedia.org/wiki/Copy-on-write#Copy-on-write_in_virtual_memory_management
+
+    calloc() 传递给你的预先清零的内存是一次性处理的。如果使用 realloc() 来扩展你使用 calloc() 分配的内存，扩展的内存是没有清零的内存。
+如果需要将 realloc 分配的内存清零，必须要针对扩展的内存手动的调用 memset() 。
+
+
+-------------------------------------------------------------------------------- 永远不要使用 memset（如果你可以避免的话）
+当你能够静态的初始化一个结构体（或数组）为零（或者通过内连复合字面量赋值它为零，或者通过结构体外的一个预先置零全局变量赋值），就不要使用 memset(ptr, 0, len)。
+尽管如此，如果你需要将结构体包括他的填充字节置零，memset() 是唯一的方法（因为 {0} 只能设置定义的字段，而不能填充未定义的偏移量）。
+
+
+
+
+https://wiki.sei.cmu.edu/confluence/display/c/SEI+CERT+C+Coding+Standard 你真心希望能够写出完美的代码，只需要简单记住其中上千个简单示例
+ Modern C
+
+
