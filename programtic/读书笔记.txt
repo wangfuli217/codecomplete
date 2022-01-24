@@ -1,0 +1,29 @@
+https://www.douban.com/people/liuyangsl/reviews?start=10 # 读书笔记 《第二章 注重实效的途径》
+https://zhuanlan.zhihu.com/p/406835920
+https://github.com/HabenChan/pragmatic-programmer-zh/blob/master/Chapter1/%E5%8A%A1%E5%AE%9E%E4%B8%BB%E4%B9%89%E5%93%B2%E5%AD%A6.md
+
+
+介绍注重实效程序员的的经验、见解和观察；
+程序员 ->{态度,风格,解决问题及其解决方案的哲学}->务实的程序员 ->{}-> 注重实效的程序员
+[大局观]
+思考的问题超出了眼前的问题，总是试图将其放在更大的范围内，总是试图意识到更大的局面。
+没有这种更大的环境，怎么能务实呢？ 又如何做出明智的妥协和明智的决定？
+[责任感]
+对自己所做的一切都负责，不会袖手旁观，不会看着他们的项目因疏忽而崩溃
+保持项目一尘不染，始终是崭新状态。
+[变化和不变]
+石汤和煮青蛙 -> 如何控制变化和如何保持不变
+
+
+这本书并不是要提供 all answers——它的作用是让读者知道自己的 unknown unknowns
+实用三件套——版本控制，回归测试，完全自动化很朴实，但这正是所有大公司遵循的实践——持续集成/交付
+
+编写程序：程序设计实践（The practise of programming）从各个方面，讲述了如何编写正确、优美的程序
+交流：人性的弱点，这个... 不用多说了吧，和编程无关，但是程序员应该读读它，毕竟我们不只和计算机打交道
+算法速率和估算：编程珠玑（Programming pearls）是介绍编写实用高效算法和正确程序的最好的书籍
+生产效率：卓有成效的程序员（The productive programmer）里提供了很多实用的小工具，以及提升编程效率的具体途径。
+软件构建：代码大全2（Code complete 2nd edition），超级经典的软件构建过程全书，从下至上介绍了软件构建过程中的大量使用技巧和细节。
+重构：重构-改善既有代码的设计（Refactoring- refactoring improving the design of existing code）阐述了重构的理念，并提供了大量的重构技巧。
+编程规范：.Net设计规范（Framework Design Guidelines）一书以微软.Net Framework开发团队的视角，提供了大量.Net编程的实用规约（Convention）
+
+
