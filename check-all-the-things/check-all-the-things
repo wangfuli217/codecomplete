@@ -1,0 +1,1426 @@
+#!/usr/bin/env python3
+# PYTHON_ARGCOMPLETE_OK
+
+# Copyright 2014-2020 Jakub Wilk <jwilk@jwilk.net>
+# Copyright 2015-2019 Paul Wise <pabs@debian.org>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+import argparse
+import collections
+import configparser
+import fnmatch
+import glob
+import os
+import re
+import pty
+import shlex
+import stat
+import time
+import signal
+import subprocess as ipc
+import string
+import sys
+
+if sys.version_info < (3, 4):
+    raise RuntimeError('Python >= 3.4 is required')
+
+from shutil import get_terminal_size, which
+from textwrap import TextWrapper
+
+
+def get_columns():
+    return get_terminal_size().columns
+
+
+if sys.stdout.isatty():
+    from curses import tigetstr, setupterm
+    setupterm()
+    erase_line = tigetstr('el')
+    reset_term = tigetstr('sgr0') or tigetstr('oc') or tigetstr('op') or bytes()
+
+if not hasattr(signal, 'Signals'):
+    # Python 3.4 compatibility:
+    from enum import IntEnum
+    items = []
+    for name, value in vars(signal).items():
+        sig = name.startswith('SIG') and not name.startswith('SIG_')
+        ctrl = name.startswith('CTRL_')
+        if name.isupper() and sig or ctrl:
+            items.append((name, value))
+    signal.Signals = IntEnum('Signals', items)
+
+try:
+    import argcomplete
+    ChoicesCompleter = argcomplete.completers.ChoicesCompleter
+except ImportError:
+    argcomplete = None
+
+    class ChoicesCompleter:
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+try:
+    import ptyprocess
+except ImportError:
+    ptyprocess = None
+
+try:
+    import netifaces
+except ImportError:
+    netifaces = None
+
+try:
+    import magic
+except ImportError:
+    magic = None
+
+this = os.path.realpath(__file__)
+rootdir = os.path.dirname(this)
+datadir = os.environ.get('CATS_DATA')
+dataglob = '*.ini'
+if not datadir or not os.path.isdir(datadir):
+    datadir = os.path.join(rootdir, 'data')
+else:
+    dataglob = '*'
+if not datadir or not os.path.isdir(datadir):
+    datadir = os.path.join(os.path.dirname(rootdir), 'share',
+                           'check-all-the-things', 'data')
+
+
+def erase_to_eol_cr(size=0):
+    if erase_line:
+        sys.stdout.buffer.write(erase_line)
+    else:
+        width = get_columns()
+        print(' ' * (width - size), end='')
+    print(end='\r')
+    sys.stdout.flush()
+
+
+def show_progress(cmd):
+    width = get_columns()
+    line = '$ ' + cmd.replace('\n', '')
+    size = len(line)
+    if size > width:
+        line = line[:width]
+    print(line, end='')
+    erase_to_eol_cr(len(line))
+
+
+def show_header(header):
+    if header:
+        print(header)
+        sys.stdout.flush()
+        return True
+    else:
+        return False
+
+
+def spawn_ptyprocess(terminal, cmd, hide, header, footer, limit):
+    lines = 0
+    trimmed = False
+
+    def output_header():
+        nonlocal header
+        erase_to_eol_cr()
+        show_header(header)
+        header = None
+
+    proc = ptyprocess.ptyprocess.PtyProcess.spawn(['sh', '-c', cmd])
+    while True:
+        try:
+            line = proc.readline()
+            if line:
+                if limit > 0:
+                    lines += 1
+                    if lines > limit:
+                        trimmed = True
+                        if terminal:
+                            sys.stdout.buffer.write(reset_term)
+                        print(*footer, sep='\n')
+                        sys.stdout.flush()
+                        proc.kill(signal.SIGTERM)
+                        break
+                if header:
+                    output_header()
+                sys.stdout.buffer.write(line)
+                sys.stdout.flush()
+        except EOFError:
+            break
+    if header and not hide:
+        output_header()
+    if terminal and not trimmed:
+        sys.stdout.buffer.write(reset_term)
+    return not bool(header), trimmed
+
+
+def spawn_pty(terminal, cmd, hide, header, footer, limit):
+    lines = 0
+    trimmed = False
+    pipe = None
+
+    def output_header():
+        nonlocal header
+        erase_to_eol_cr()
+        print(header.replace('\n', '\r\n'), end='\r\n')
+        sys.stdout.flush()
+        header = None
+
+    def read(fd):
+        nonlocal limit
+        nonlocal lines
+        nonlocal trimmed
+        nonlocal header
+        nonlocal pipe
+        if not pipe:
+            pipe = open(fd, closefd=False)
+        data = pipe.buffer.readline()
+        if limit > 0:
+            lines += 1
+            if lines > limit:
+                trimmed = True
+                if terminal:
+                    sys.stdout.buffer.write(reset_term)
+                print(*footer, sep='\r\n', end='\r\n')
+                sys.stdout.flush()
+                raise OSError
+        if data and header:
+            output_header()
+        return data
+
+    pty.spawn(['sh', '-c', cmd], read)
+    pipe.close()
+    if header and not hide:
+        output_header()
+    if terminal and not trimmed:
+        sys.stdout.buffer.write(reset_term)
+    return not bool(header), trimmed
+
+
+def spawn_pipe(terminal, cmd, hide, header, footer, limit):
+    lines = 0
+    trimmed = False
+
+    def output_header():
+        nonlocal header
+        show_header(header)
+        header = None
+
+    def check_lines():
+        nonlocal proc
+        nonlocal limit
+        nonlocal lines
+        nonlocal trimmed
+        nonlocal footer
+        if limit > 0:
+            lines += 1
+            if lines > limit:
+                trimmed = True
+                if terminal:
+                    sys.stdout.buffer.write(reset_term)
+                print(*footer, sep='\n')
+                sys.stdout.flush()
+                proc.terminate()
+                return True
+
+    with ipc.Popen(cmd, shell=True, stdout=ipc.PIPE, stderr=ipc.STDOUT) as proc:
+        line = proc.stdout.readline()
+        if line and header:
+            output_header()
+        sys.stdout.buffer.write(line)
+        sys.stdout.flush()
+        if not check_lines():
+            for line in proc.stdout:
+                if check_lines():
+                    break
+                sys.stdout.buffer.write(line)
+                sys.stdout.flush()
+    if header and not hide:
+        output_header()
+    if terminal and not trimmed:
+        sys.stdout.buffer.write(reset_term)
+    return not bool(header), trimmed
+
+
+def spawn_none(terminal, cmd, header):
+    show_header(header)
+    ipc.call(cmd, shell=True, stderr=ipc.STDOUT)
+    if terminal:
+        sys.stdout.buffer.write(reset_term)
+    return True, False
+
+
+def spawn(terminal, method, cmd, hide, header, footer, limit):
+    if method == 'pipe':
+        return spawn_pipe(terminal, cmd, hide, header, footer, limit)
+    elif method == 'ptyprocess':
+        show_progress(cmd)
+        return spawn_ptyprocess(terminal, cmd, hide, header, footer, limit)
+    elif method == 'pty':
+        show_progress(cmd)
+        return spawn_pty(terminal, cmd, hide, header, footer, limit)
+    elif method == 'none':
+        return spawn_none(terminal, cmd, header)
+    else:
+        raise RuntimeError
+
+
+def spawn_choice(supervise, terminal):
+    if supervise:
+        if terminal:
+            if ptyprocess:
+                return 'ptyprocess'
+            else:
+                return 'pty'
+        else:
+            return 'pipe'
+    else:
+        return 'none'
+
+
+class UnmetPrereq(Exception):
+    pass
+
+
+class Check(object):
+
+    def __init__(self):
+        self.debian = None
+        types = set()
+        types.update('files not_files not_dirs'.split())
+        for type in set(types):
+            types.update((type + '_path', type + '_parent'))
+        types.update('types not_types'.split())
+        for type in types:
+            self.__dict__[type] = None
+            self.__dict__['_' + type + '_fn'] = None
+        self.comment = None
+        self.cmds = []
+        self.cmds_nargs = []
+        self.flags = set()
+        self.prereq = None
+        self.disabled = set()
+
+    def set_debian(self, value):
+        self.debian = value
+
+    def _set_re_fn(self, this, type, affix=True):
+        regexp = '|'.join(
+            fnmatch.translate(s)
+            for s in this[type]
+        )
+        if affix:
+            regexp = r'\A(?:{re})\Z'.format(re=regexp)
+        else:
+            regexp = r'(?:{re})'.format(re=regexp)
+        this['_' + type + '_re'] = regexp
+        regexp = re.compile(regexp, flags=re.IGNORECASE)
+        this['_' + type + '_fn'] = regexp.match
+
+    def _set_match_fn(self, type, values):
+        type_path = type + '_path'
+        type_parent = type + '_parent'
+        this = self.__dict__
+        this[type] = []
+        this[type_path] = []
+        this[type_parent] = []
+        for value in values.split():
+            if value.startswith('/'):
+                this[type_path].append('*' + value)
+            elif value.startswith('./'):
+                this[type_path].append(value)
+            elif value.startswith('../'):
+                this[type_parent].append(value)
+            elif value.find('/') != -1:
+                this[type_path].append('*/' + value)
+            elif value:
+                this[type].append(value)
+        for subtype in (type, type_path, type_parent):
+            if this[subtype]:
+                self._set_re_fn(this, subtype)
+
+    def set_files(self, value):
+        self._set_match_fn('files', value)
+
+    def set_not_files(self, value):
+        self._set_match_fn('not_files', value)
+
+    def set_not_dirs(self, value):
+        self._set_match_fn('not_dirs', value)
+
+    def _set_type_match_fn(self, type, values):
+        this = self.__dict__
+        this[type] = values.split()
+        if this[type]:
+            self._set_re_fn(this, type, False)
+
+    def set_types(self, value):
+        self._set_type_match_fn('types', value)
+
+    def set_not_types(self, value):
+        self._set_type_match_fn('not_types', value)
+
+    def set_comment(self, value):
+        self.comment = value.strip()
+
+    def set_command(self, value):
+        cmds = [item.strip() for item in value]
+        self.cmds = [cmd for cmd in cmds if cmd]
+        self.cmds_nargs = []
+        for cmd in cmds:
+            self.add_command_nargs(cmd)
+
+    def add_command_nargs(self, cmd):
+        fields = {
+            field
+            for text, field, fmt, conv
+            in string.Formatter().parse(cmd)
+        }
+        nargs = 1 * ('file' in fields) + 2 * ('files' in fields)
+        if nargs >= 3:
+            raise RuntimeError('invalid command specification: ' + cmd)
+        self.cmds_nargs.append(nargs)
+
+    def set_flags(self, value):
+        self.flags = set(value.split())
+
+    def set_prereq(self, value):
+        self.prereq = value
+
+    def _set_fcmd_(self, fcmd, types, tests):
+        this = self.__dict__
+        wildcards = []
+        _tests = []
+        # Aggregate everything into one array since
+        # the find command works this way
+        for i, type in enumerate(types):
+            if this[type]:
+                wildcards += this[type]
+                _tests += len(this[type]) * [tests[i]]
+        if not wildcards:
+            return
+        elif len(wildcards) == 1:
+            [wildcard] = wildcards
+            fcmd += [_tests[0], shlex.quote(wildcard)]
+        else:
+            end = len(fcmd)
+            for i, wildcard in enumerate(wildcards):
+                fcmd += ['-o', _tests[i], shlex.quote(wildcard)]
+            fcmd[end] = '\\('
+            fcmd += ['\\)']
+
+    def _set_fcmd(self, fcmd, type):
+        self._set_fcmd_(fcmd, [type, type + '_path'], ['-iname', '-iwholename'])
+
+    def get_sh_cmd(self, this_cmd, nargs, njobs=1, types=False):
+        srcdir = os.path.dirname(__file__)
+        pd = os.path.pardir
+        cwd = os.path.curdir
+        if self.is_flag_set('run-in-tmp-dir'):
+            pd = os.path.abspath(pd)
+            cwd = os.path.abspath(cwd)
+        pd = shlex.quote(pd)
+        cwd = shlex.quote(cwd)
+        srcdir = shlex.quote(srcdir)
+        kwargs = {
+            'srcdir': srcdir,
+            'pd': pd,
+            'cwd': cwd,
+            'files': '{} +',
+            'file': '{} \\;',
+            'njobs': njobs,
+        }
+        if not this_cmd:
+            return
+        cmd = this_cmd.format_map(kwargs)
+        # FIXME: remove this once Perl no longer includes . in @INC by default
+        # https://rt.perl.org/Public/Bug/Display.html?id=127810
+        # https://bugs.debian.org/588017
+        if self.is_flag_set('perl-inc-cwd-bug'):
+            cmd = 'env PERL5OPT=-m-lib=. ' + cmd
+        if nargs > 0:
+            fcmd = ['find']
+            any = self.not_files or self.not_files_path or self.files or self.files_path
+            if self.files_parent:
+                fcmd += [pd, '-maxdepth', '1', '-type', 'f']
+                self._set_fcmd_(fcmd, ['files_parent'], ['-iwholename'])
+                fcmd += ['-exec', cmd]
+                if any:
+                    fcmd += [';', 'find', cwd]
+            else:
+                fcmd += [cwd]
+            if self.not_dirs or self.not_dirs_path:
+                fcmd += ['-type', 'd']
+                self._set_fcmd(fcmd, 'not_dirs')
+                fcmd += ['-prune', '-o']
+            if any:
+                fcmd += ['-type', 'f']
+                self._set_fcmd(fcmd, 'files')
+            if self.not_files or self.not_files_path:
+                if self.files or self.files_path:
+                    fcmd += ['-a']
+                fcmd += ['!']
+                self._set_fcmd(fcmd, 'not_files')
+            if self.types and types:
+                tfcmd = ''
+                if any:
+                    tfcmd += '''-print0 -o '''
+                tfcmd += '''-exec sh -c 'file --mime-type -r0 "$1" | cut -d "" -f 2 | grep -qP "^: '''
+                tfcmd += self._types_re
+                tfcmd += '''$" && printf "%s\\0" "$1"' sh {} \\; | xargs -0'''
+                if nargs == 1:
+                    tfcmd += 'n1'
+                kwargs_nofiles = dict(kwargs, file='', files='')
+                fcmd += [tfcmd, this_cmd.format_map(kwargs_nofiles)]
+            elif not self.files_parent or any:
+                fcmd += ['-exec', cmd]
+            cmd = ' '.join(fcmd)
+        if self.is_flag_set('run-in-tmp-dir'):
+            cmd = '( d=$(mktemp -d) || exit 1 ; c () { rm -rf "$d"; } ; trap c EXIT ; cd "$d" || exit 1 ; ' + cmd + ' )'
+        elif self.is_flag_set('run-in-root-dir'):
+            cmd = '( cd / || exit 1 ; ' + cmd + ' )'
+        return cmd
+
+    def meet_prereq(self):
+        if self.prereq is None:
+            if not self.cmds:
+                return
+            cmdline = shlex.split(self.cmds[0])
+            srcdir = os.path.dirname(__file__)
+            cmd = cmdline[0].format(srcdir=srcdir)
+            if cmd == 'cat':
+                cmd = cmdline[cmdline.index('|') + 1]
+            if not which(cmd) and not self.is_flag_set('todo'):
+                raise UnmetPrereq('command not found: ' + cmd)
+        else:
+            try:
+                ipc.check_call(
+                    ['sh', '-e', '-c', self.prereq],
+                    stdout=ipc.DEVNULL,
+                    stderr=ipc.DEVNULL,
+                )
+            except ipc.CalledProcessError:
+                raise UnmetPrereq('command failed: ' + self.prereq)
+
+    def is_file_matching(self, path, file):
+        if self._not_files_path_fn and self._not_files_path_fn(path):
+            return False
+        if self._not_files_fn and self._not_files_fn(file):
+            return False
+        if self._files_path_fn and self._files_path_fn(path):
+            return True
+        if self._files_fn and self._files_fn(file):
+            return True
+        if not (self.files or self.files_path or self.files_parent):
+            return True
+        return False
+
+    def is_parent_file_matching(self, path):
+        if self._not_files_parent_fn and self._not_files_parent_fn(path):
+            return False
+        if self._files_parent_fn and self._files_parent_fn(path):
+            return True
+        return False
+
+    def is_dir_matching(self, path):
+        dir = os.path.split(path)[-1]
+        if self._not_dirs_fn and self._not_dirs_fn(dir):
+            return True
+        if self._not_dirs_path_fn and self._not_dirs_path_fn(path):
+            return True
+        return False
+
+    def is_type_matching(self, type):
+        if self._not_types_fn and self._not_types_fn(type):
+            return False
+        if self._types_fn and self._types_fn(type):
+            return True
+        return False
+
+    def is_always_matching_files(self):
+        return not (self.files or self.files_path or self.files_parent)
+
+    def is_always_matching_types(self):
+        return not self.types
+
+    def is_flag_set(self, value):
+        return value in self.flags
+
+    def do(self, name, jobs, types, run, verbosity, hide, limit, method, terminal, remarks):
+        comment = self.comment
+        manual = self.is_flag_set('manual')
+        style = self.is_flag_set('style')
+        complexity = self.is_flag_set('complexity')
+        fixme = self.is_flag_set('fixme')
+        fixme_silent = fixme and self.is_flag_set('fixme-silent')
+        fixme_ignore = fixme and self.is_flag_set('fixme-ignore')
+        todo = self.is_flag_set('todo')
+        embed = self.is_flag_set('embed')
+        trim = limit > 0
+        hide = hide or len(self.cmds) > 1
+        header = ''
+        footer = ('...',)
+        if manual and not todo:
+            header += '# This command needs a human to read about and run it\n'
+        if style and not todo:
+            header += '# This command checks style. While a consistent style\n'
+            header += '# is a good idea, people who have different style\n'
+            header += '# preferences will want to ignore some of the output.\n'
+        if complexity and not todo:
+            header += '# This command checks code complexity. While simple\n'
+            header += '# code is a good idea, complex code can be needed.\n'
+        if (style or complexity) and not todo:
+            header += '# Do not bother adding non-upstreamable patches for this.\n'
+        if fixme or todo:
+            header += '# This command needs someone to help out with it.\n'
+            remark(remarks, name, 'help needed')
+        if fixme_silent:
+            header += '# This command needs an option to only print issues.\n'
+        if fixme_ignore:
+            header += '# This command needs an option to ignore certain paths.\n'
+        if comment:
+            header += ''.join('# ' + line + '\n' for line in comment.split('\n'))
+        if embed and not todo:
+            header += '# Please remove any embedded copies from the upstream VCS and tarballs.\n'
+            header += '# https://wiki.debian.org/EmbeddedCodeCopies\n'
+
+        # Needed to create a new variable scope
+        def do_cmd(cmd, nargs, run, hide, method, header):
+            cmd = self.get_sh_cmd(cmd, nargs, njobs=jobs, types=types)
+            run = cmd and run and not manual and not todo
+            hide = hide and run
+            supervise = hide or trim
+            if method == 'auto':
+                method = spawn_choice(supervise, terminal)
+            if cmd:
+                prompt = '# $ ' if manual or todo else '$ '
+                header += prompt + cmd
+            if run:
+                output, trimmed = spawn(terminal, method, cmd, hide, header, footer, limit)
+            else:
+                if terminal:
+                    erase_to_eol_cr()
+                output = show_header(header)
+                trimmed = False
+            return output, trimmed, hide
+
+        if verbosity < 0:
+            cmds_start = max(0, len(self.cmds) + verbosity)
+        else:
+            cmds_start = min(verbosity, len(self.cmds) - 1)
+        for i, cmd in enumerate(self.cmds):
+            if i < cmds_start:
+                continue
+            output, trimmed, hidden = do_cmd(cmd, self.cmds_nargs[i], run, hide, method, header)
+            if output:
+                if trim and trimmed:
+                    remark(remarks, name, 'trimmed')
+                if run:
+                    return output
+        else:
+            output = None
+            hidden = False
+        if not output and hidden:
+            remark(remarks, name, 'no output')
+
+
+class Formatter(argparse.ArgumentDefaultsHelpFormatter):
+    pass
+
+
+def process_args(self, action, args):
+    if args:
+        for arg in args:
+            if arg not in self.all:
+                raise argparse.ArgumentError(self, self.unknown_msg.format(arg))
+        action(args)
+    else:
+        raise argparse.ArgumentError(self, self.missing_msg)
+
+
+def process(self, choices):
+    action = None
+    args = set()
+    if not choices:
+        raise argparse.ArgumentError(self, self.missing_msg)
+    end = len(choices) - 1
+    for i, choice in enumerate(choices):
+        arg = None
+        if choice.startswith('='):
+            new_action = self.change
+        elif choice.startswith('+'):
+            new_action = self.enable
+        elif choice.startswith('-'):
+            new_action = self.disable
+        else:
+            new_action = None
+            arg = choice
+        if arg is None:
+            arg = choice[1:]
+        if arg:
+            arg = set([arg])
+        else:
+            arg = set()
+        if i == 0:
+            action = new_action if new_action else self.change
+            args.update(arg)
+        if i > 0:
+            if new_action:
+                process_args(self, action, args)
+                action = new_action
+                args = set()
+            args.update(arg)
+        if i == end:
+            process_args(self, action, args)
+
+
+class CheckSelectionAction(argparse.Action):
+    msg = 'cmdline disabled check'
+    unknown_msg = 'unknown check: {}'
+    missing_msg = 'missing check name'
+
+    def __init__(self, option_strings, dest, checks={}, all=set(), prepend_values=[], *args, **kwargs):
+        self.checks = checks
+        self.all = all
+        self.prepend_values = prepend_values
+        super().__init__(option_strings=option_strings, dest=dest, *args, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        for value in self.prepend_values + values:
+            process(self, value.split())
+
+    def change(self, checks):
+        for name, check in self.checks.items():
+            if name in checks:
+                self.checks[name].disabled.clear()
+            else:
+                self.checks[name].disabled.add(self.msg)
+
+    def enable(self, checks):
+        for name in checks:
+            self.checks[name].disabled.clear()
+
+    def disable(self, checks):
+        for name in checks:
+            self.checks[name].disabled.add(self.msg)
+
+
+class FlagSelectionAction(argparse.Action):
+    msg = 'cmdline disabled flag'
+    unknown_msg = 'unknown flag: {}'
+    missing_msg = 'missing flag name'
+
+    def __init__(self, option_strings, dest, checks={}, flags=set(), all=set(), disable={}, prepend_values=[], *args, **kwargs):
+        self.checks = checks
+        self.flags = flags
+        self.all = all
+        self.disabled = disable
+        self.prepend_values = prepend_values
+        super().__init__(option_strings=option_strings, dest=dest, *args, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        for value in self.prepend_values + values:
+            process(self, value.split())
+
+    def change(self, flags):
+        self.flags.__init__(flags)
+        bad = set(self.disabled.keys())
+        want_all = flags
+        want_bad = flags & bad
+        want_good = flags - bad
+        for name, check in sorted(self.checks.items()):
+            checkf = check.flags
+            check_enable = check_disable = False
+            if want_good & checkf:
+                if bad & checkf & want_bad:
+                    check_enable = True
+                elif not(checkf & bad):
+                    check_enable = True
+                else:
+                    check_disable = True
+            elif want_all <= bad and want_all & checkf:
+                check_enable = True
+            else:
+                check_disable = True
+            if check_enable:
+                self.checks[name].disabled.clear()
+            elif check_disable:
+                self.checks[name].disabled.add(self.msg)
+
+    def enable(self, flags):
+        self.flags.update(flags)
+        bad = set(self.disabled.keys())
+        want_all = flags
+        want_bad = flags & bad
+        want_good = flags - bad
+        for name, check in sorted(self.checks.items()):
+            checkf = check.flags
+            check_enable = False
+            if want_good & checkf:
+                if bad & checkf & want_bad:
+                    check_enable = True
+                elif not(checkf & bad):
+                    check_enable = True
+            elif want_all <= bad and want_all & checkf:
+                check_enable = True
+            if check_enable:
+                self.checks[name].disabled.clear()
+
+    def disable(self, flags):
+        self.flags.difference_update(flags)
+        bad = set(self.disabled.keys())
+        want_good = flags - bad
+        for name, check in sorted(self.checks.items()):
+            checkf = check.flags
+            check_disable = False
+            if want_good & checkf:
+                check_disable = True
+            if check_disable:
+                self.checks[name].disabled.add(self.msg)
+
+
+class RangeCompleter(object):
+
+    def __init__(self, start, end):
+        self.choices = range(start, end + 1)
+
+    def __call__(self, prefix, **kwargs):
+        return (str(c) for c in self.choices if str(c).startswith(prefix))
+
+
+class OrderedDictOfLists(collections.OrderedDict):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__indices__ = collections.defaultdict(int)
+        self.__return_item_lists__ = collections.defaultdict(bool)
+
+    # This is needed so that configparser updates the correct list items
+    def __setitem__(self, key, value):
+        if not super().__contains__(key):
+            super().__setitem__(key, [])
+        items = super().__getitem__(key)
+        if isinstance(value, list):
+            items.append(value)
+        elif isinstance(value, str):
+            try:
+                items[self.__indices__[key]] = value
+            except IndexError:
+                self.__return_item_lists__[key] = True
+                items.append(value)
+            self.__indices__[key] += 1
+        else:
+            super().__setitem__(key, value)
+
+    # This is needed so that configparser appends to the right list
+    def __getitem__(self, key):
+        result = super().__getitem__(key)
+        if isinstance(result, list) and not self.__return_item_lists__[key] and self.__reading__:
+            result = result[-1]
+        return result
+
+    # This is needed to catch duplicate sections
+    def __contains__(self, item):
+        contains = super().__contains__(item)
+        if self.__reading__ and contains:
+            raise configparser.DuplicateSectionError(item, self.__path__)
+        return contains
+
+    def items(self):
+        result = super().items()
+        if result:
+            items = []
+            for key, val in result:
+                if isinstance(val, list):
+                    for value in val:
+                        items.append((key, value))
+                else:
+                    items.append((key, val))
+            result = items
+        return result
+
+
+def parse_section(path, section, check=None):
+    if not check:
+        check = Check()
+    for key, value in section.items():
+        key = key.replace('-', '_')
+        if key != 'command':
+            if len(value) > 1:
+                raise configparser.DuplicateOptionError(section.name, key, path)
+            else:
+                [value] = value
+        getattr(check, 'set_' + key)(value)
+    return check
+
+
+def parse_conf(checks={}, flags=set(), distro=None, release=None):
+    if distro and release:
+        for path in glob.glob(os.path.join(datadir, 'overlay', distro, release, dataglob)):
+            parse_file(checks, flags, path, True)
+    else:
+        for path in glob.glob(os.path.join(datadir, dataglob)):
+            parse_file(checks, flags, path)
+    return (checks, flags)
+
+
+def parse_file(checks, flags, path, overlay=False):
+    attrs = {'__path__': path, '__reading__': True}
+    cls = type('OrderedDictOfListsForPath', (OrderedDictOfLists,), attrs)
+    cp = configparser.ConfigParser(interpolation=None, strict=False, dict_type=cls)
+    cp.read(path, encoding='UTF-8')
+    cls.__reading__ = False
+    for name in cp.sections():
+        section = cp[name]
+        if name in checks:
+            if overlay:
+                parse_section(path, section, checks[name])
+            else:
+                raise RuntimeError('duplicate check name: ' + name)
+        else:
+            checks[name] = parse_section(path, section)
+        checks[name].flags.update({os.path.splitext(os.path.basename(path))[0]})
+        flags.update(checks[name].flags)
+
+
+def remark(remarks, name, reason):
+    if reason not in remarks:
+        remarks[reason] = set()
+    if name:
+        remarks[reason].add(name)
+    return True
+
+
+def set_debian_substvars(checks):
+    try:
+        import apt_pkg
+    except ImportError:
+        print('ERROR: Python apt module not installed', file=sys.stderr)
+        sys.exit(1)
+    recommends = []
+    suggests = []
+    for name, check in checks.items():
+        try:
+            if check.debian:
+                apt_pkg.parse_depends(check.debian)
+            else:
+                continue
+        except ValueError:
+            print('ERROR: Could not parse deps for {}: {}'.format(name, check.debian), file=sys.stderr)
+            sys.exit(1)
+        if not check.is_flag_set('todo') and not check.is_flag_set('debian-suggests'):
+            recommends.append(check.debian)
+        else:
+            suggests.append(check.debian)
+    recommends = ', '.join(sorted(recommends))
+    suggests = ', '.join(sorted(suggests))
+    with open('debian/check-all-the-things.substvars', 'a') as substvars:
+        print('cats:Recommends={}'.format(recommends), file=substvars)
+        print('cats:Suggests={}'.format(suggests), file=substvars)
+
+
+def strip_path(script):
+    base = os.path.basename(script)
+    if which(base) == script:
+        return base
+    return script
+
+
+def cats_cmd(*args):
+    script = strip_path(sys.argv[0])
+    cmd = [shlex.quote(script)]
+    cmd += args
+    cmd += [shlex.quote(arg) for arg in sys.argv[1:]]
+    cmd = ' '.join(cmd)
+    return cmd
+
+
+def root_cmd(cmd):
+    if which('sudo'):
+        return ['sudo'] + cmd
+    elif which('pkexec'):
+        return ['pkexec'] + cmd
+    elif which('su'):
+        return 'su -c'.split() + [' '.join([shlex.quote(arg) for arg in cmd])]
+    else:
+        return None
+
+
+def install_apt(matching_checks, checks, get_deps, ignore_check):
+    if os.geteuid() == 0:
+        print('ERROR: Installing apt packages should not be done as root', file=sys.stderr)
+        return 1
+    try:
+        import apt_pkg
+        apt_pkg.init_system()
+    except ImportError:
+        print('ERROR: Python apt module not installed', file=sys.stderr)
+        return 1
+    missing = []
+    check_deps = []
+    for name, check in checks.items():
+        deps = get_deps(check)
+        if name not in matching_checks or check.disabled or not deps or ignore_check(check):
+            continue
+        try:
+            check.meet_prereq()
+        except UnmetPrereq:
+            missing.append(name)
+            check_deps.append(deps)
+    if not missing:
+        print('ERROR: no missing commands to install', file=sys.stderr)
+        return 1
+    deps = ', '.join(sorted(check_deps))
+    build_deps = 'Build-Depends: ' + deps
+    if which('apt'):
+        version = ipc.check_output('apt-get --version'.split()).split()[1]
+        # apt 0.5.5 added the APT::Build-Essential option
+        # apt 0.9.14.3~exp3 added the apt command
+        # apt 1.0 installed the apt command by default
+        # apt 1.1~exp1 added support for installing build-deps from .dsc files
+        # apt 1.2.2 switched to using the normal resolver for build-deps
+        # apt 1.4~beta3 allows the default APT::Build-Essential to be overridden
+        # apt 1.4~beta3~bpo could be in someone's local backports
+        if apt_pkg.version_compare(version, '1.4~beta3~') >= 0:
+            from tempfile import NamedTemporaryFile as tmp
+            with tmp(mode='w', prefix='check-all-the-things-install-', suffix='.dsc') as dsc:
+                print(build_deps, file=dsc)
+                # Ensure that apt will see the contents of the dsc
+                dsc.flush()
+                # The option prevents apt from installing build-essential
+                # The comma is important because the option is a list
+                cmd = 'apt build-dep --option APT::Build-Essential=,'.split()
+                fake_cmd = list(cmd)
+                cmd.append(dsc.name)
+                fake_dsc = './check-all-the-things-install.dsc'
+                fake_cmd.append(fake_dsc)
+                cmd = root_cmd(cmd)
+                fake_cmd = root_cmd(fake_cmd)
+                if cmd is None:
+                    print('ERROR: tools for gaining root are not available', file=sys.stderr)
+                    return 1
+                print('Installing missing commands for checks:', *missing)
+                print('Installing packages:', deps)
+                print('$', 'echo', shlex.quote(build_deps), '>', fake_dsc)
+                print('$', *[shlex.quote(arg) for arg in fake_cmd])
+                # Both the gain root command and apt itself request confirmation
+                # so that does not have to be done here
+                p = ipc.Popen(cmd)
+                ret = None
+                try:
+                    ret = p.wait()
+                except KeyboardInterrupt:
+                    try:
+                        p.terminate()
+                    except OSError:
+                        pass
+                    ret = p.wait()
+                    print()
+                if ret > 0:
+                    print('apt returned failure code: {}'.format(ret))
+                elif ret < 0:
+                    ret = -ret
+                    sig = signal.Signals(ret).name
+                    print('apt terminated by signal: {}'.format(sig))
+                    # Preserve the exit status in the same way that shells do
+                    ret += 128
+                return ret
+            print('ERROR: could not open temporary file', file=sys.stderr)
+            return 1
+    print('ERROR: apt earlier than version 1.4~beta3 not supported yet', file=sys.stderr)
+    return 1
+
+
+def get_deps_debian(check):
+    return check.debian
+
+
+def ignore_check_debian(check):
+    return check.is_flag_set('todo') or check.is_flag_set('debian-suggests')
+
+
+def install_debian(matching_checks, checks):
+    return install_apt(matching_checks, checks, get_deps_debian, ignore_check_debian)
+
+
+def install(install_type, matching_checks, checks):
+    if install_type == 'debian':
+        ret = install_debian(matching_checks, checks)
+    else:
+        print('ERROR: Unknown install type {}'.format(install_type), file=sys.stderr)
+        ret = 1
+    return ret
+
+
+def install_choice():
+    if os.path.isfile('/etc/debian_version'):
+        return 'debian'
+    else:
+        return None
+
+
+def install_cmd(install_type):
+    if install_type:
+        return cats_cmd('--install', install_type)
+    else:
+        return None
+
+
+def walk(typedb, checks, remarks, matching_checks, parent, top):
+    matched_globs = collections.defaultdict(set)
+    matched_names = collections.defaultdict(set)
+    matched_types = collections.defaultdict(set)
+    unknown = 'application/octet-stream'
+    ignore_checks = {}
+    ignore_checks[top] = set()
+    ignore_dirs = set('.git .svn .bzr CVS .hg _darcs _FOSSIL_ .sgdrawer .pc'.split())
+    for root, dirs, files in os.walk(top):
+        root_set = set(root.split(os.path.sep))
+        if parent:
+            del dirs[:]
+        else:
+            if root not in ignore_checks:
+                up = os.path.split(root)[0]
+                ignore_checks[root] = set(ignore_checks[up])
+            for name, check in checks.items():
+                if name in ignore_checks[root]:
+                    continue
+                if check.is_dir_matching(root):
+                    ignore_checks[root].add(name)
+        for file in files:
+            type = None
+            path = os.path.join(root, file)
+            st = os.lstat(path)
+            if not stat.S_ISREG(st.st_mode):
+                continue
+            base, ext = os.path.splitext(file)
+            base = base.lower()
+            ext = ext.lower()
+            if ext:
+                matched_files = matched_globs
+                matched_key = ext
+            else:
+                matched_files = matched_names
+                matched_key = base
+            for name, check in checks.items():
+                if check.disabled:
+                    continue
+                if name in ignore_checks[root]:
+                    continue
+                if parent:
+                    if check.is_parent_file_matching(path):
+                        matching_checks.add(name)
+                else:
+                    if check.is_file_matching(path, file):
+                        matching_checks.add(name)
+                        if not check.is_always_matching_files() and not check.is_flag_set('todo'):
+                            matched_files[matched_key].add(name)
+                    if typedb:
+                        if not type:
+                            type = typedb.file(path)
+                        if type != unknown:
+                            if name in matched_types[type]:
+                                continue
+                            if check.is_type_matching(type):
+                                matching_checks.add(name)
+                                if not check.is_always_matching_types() and not check.is_flag_set('todo'):
+                                    matched_types[type].add(name)
+            if not (parent or root_set.intersection(ignore_dirs)):
+                if ext and not matched_globs[ext]:
+                    remark(remarks, '*' + ext, 'no specific file name wildcard checks')
+                if not ext and base and not matched_names[base]:
+                    remark(remarks, base, 'no specific file name checks')
+                if typedb and type != unknown and not matched_types[type]:
+                    remark(remarks, type, 'no specific file type checks')
+
+
+def network():
+    if netifaces:
+        gws = netifaces.gateways()
+        gw = gws.get('default')
+        if gw:
+            if netifaces.AF_INET in gw:
+                return True
+            if netifaces.AF_INET6 in gw:
+                return True
+        else:
+            return False
+    else:
+        return True
+
+
+def terminal_working():
+    if not sys.stdout.isatty():
+        return False
+    try:
+        master, slave = pty.openpty()
+        os.close(slave)
+        os.close(master)
+        return True
+    except OSError:
+        return False
+
+
+def get_cpu_count():
+    try:
+        sched_getaffinity = os.sched_getaffinity
+    except AttributeError:
+        return os.cpu_count() or 1
+    else:
+        return len(sched_getaffinity(0))
+
+
+def main():
+    (checks, flags) = parse_conf()
+    all_checks = set(checks.keys())
+    all_flags = set(flags)
+    remarks = {}
+
+    disable_flags = {
+        'dangerous': 'dangerous check',
+        'modify': 'modifies files',
+        'todo': 'help needed',
+    }
+
+    if not network():
+        disable_flags['network'] = 'no network'
+
+    all_flags.update(disable_flags.keys())
+    flags.difference_update(disable_flags.keys())
+    for name, check in checks.items():
+        for flag, reason in disable_flags.items():
+            if check.is_flag_set(flag):
+                check.disabled.add(reason)
+
+    ap = argparse.ArgumentParser(
+        formatter_class=Formatter,
+        description='This program is aimed at checking things related to '
+                    'packaging and software development.  It automates static '
+                    'analysis of code, QA, syntax and style checks and more, '
+                    'for a large set of file types.',
+        epilog="WARNING: since it checks so many things the output can be "
+               "very verbose so don't use it if you don't have time to go "
+               "through the output to find problems."
+    )
+    ap.add_argument('--jobs', '-j', metavar='N', type=int, nargs='?',
+                    help="passed to tools that can parallelize their checks",
+                    default=1).completer = RangeCompleter(1, get_cpu_count())
+    ap.add_argument('--checks', '-c', metavar='selectors', nargs=1,
+                    help="alter the set of checks to be run based on check names"
+                         " (example: = cppcheck + lintian duck - duck)",
+                    type=str, default=argparse.SUPPRESS, dest=argparse.SUPPRESS,
+                    action=CheckSelectionAction, checks=checks, all=all_checks,
+                    ).completer = ChoicesCompleter(sorted(all_checks))
+    ap.add_argument('--flags', '-f', metavar='selectors', nargs=1,
+                    help="alter the set of checks to be run based on flag names"
+                         " (example: = audio c - mp3 + sh)"
+                         " (example: = dangerous + network - todo)",
+                    type=str, default=argparse.SUPPRESS, dest=argparse.SUPPRESS,
+                    action=FlagSelectionAction, checks=checks, flags=flags, all=all_flags, disable=disable_flags,
+                    ).completer = ChoicesCompleter(sorted(all_flags))
+    ap.add_argument('--all', '-a', nargs=0,
+                    help="perform checks with possible side effects,"
+                         " including executing code or modifying files"
+                         " from the current directory."
+                         " (equivalent: --flags +dangerous --flags +modify)",
+                    type=str, default=argparse.SUPPRESS, dest=argparse.SUPPRESS,
+                    action=FlagSelectionAction, checks=checks, flags=flags, all=all_flags, disable=disable_flags,
+                    prepend_values=['+dangerous modify'])
+    ap.add_argument('--interrupt', '-i', type=str,
+                    help="when interrupted, quit or skip the current check",
+                    default='skip', choices=['quit', 'exit', 'skip'])
+    ap.add_argument('--interrupt-period', '-ip', metavar='N', type=float,
+                    help="how many seconds to wait after an interrupt for another one before continuing",
+                    default=0.5)
+    ap.add_argument('--silent-checks', type=str,
+                    help="what to do with checks that did not print any output",
+                    default='hide', choices=['show', 'hide'])
+    ap.add_argument('--remarks-lines', metavar='N',
+                    help="output lines to use for checks per remark."
+                         " (<= -1: all, 0: only reasons, >= 1: N lines of checks)",
+                    type=int, default=1).completer = RangeCompleter(-1, 20)
+    ap.add_argument('--commands', type=str,
+                    help="what to do with the commands for the chosen set of hooks",
+                    default='run', choices=['run', 'show'])
+    ap.add_argument('--command-verbosity', metavar='N', type=int,
+                    help="which command number to start at for each check,"
+                         " command verbosity starts terse at zero"
+                         " and increases with each level but"
+                         " most commands have few levels."
+                         " verbosity -1 means the most verbose command"
+                         " and increases in terseness at more negative levels",
+                    default=0).completer = RangeCompleter(0, 10)
+    ap.add_argument("--set-debian-substvars", help=argparse.SUPPRESS, action="store_true")
+    ap.add_argument('--spawn-method', type=str, help=argparse.SUPPRESS,
+                    default='auto', choices=['auto', 'none', 'pipe', 'pty', 'ptyprocess'])
+    ap.add_argument('--checks-output-lines', metavar='N',
+                    help="output lines to allow for checks."
+                         " checks using more lines are terminated,"
+                         " their output is truncated to fit,"
+                         " a footer is appended as an indicator"
+                         " and their names are printed at the end."
+                         " (<= 0: all, > 0: N lines of output)",
+                    type=int, default=10).completer = RangeCompleter(0, 20)
+    ap.add_argument('--distro', '-d', type=str,
+                    help="enable check overlay for distribution",
+                    default=None, choices=['debian'])
+    ap.add_argument('--release', '-r', type=str,
+                    help="enable check overlay for distribution release",
+                    default=None, choices=['jessie', 'stretch', 'buster'])
+    mime_help = (" matching files based on MIME type."
+                 " MIME checking is slow and"
+                 " makes more complicated commands.")
+    ap.add_argument('--mime', dest='mime', action='store_true', help='Enable '+mime_help)
+    ap.add_argument('--no-mime', dest='mime', action='store_false', help='Disable '+mime_help)
+    ap.add_argument('--install', type=str,
+                    help="install missing check commands via a package manager",
+                    nargs='?', default=None, const='auto', choices=['auto', 'debian'])
+    ap.set_defaults(mime=False)
+    if argcomplete:
+        argcomplete.autocomplete(ap)
+    elif '_ARGCOMPLETE' in os.environ:
+        print('ERROR: Argument completion requested but Python argcomplete module not installed', file=sys.stderr)
+        sys.exit(1)
+
+    options = ap.parse_args()
+    if options.distro and options.release:
+        parse_conf(checks, flags, options.distro, options.release)
+    if options.set_debian_substvars:
+        set_debian_substvars(checks)
+        sys.exit()
+    if options.jobs is None:
+        options.jobs = get_cpu_count()
+    jobs = options.jobs
+    run = options.commands == 'run'
+    verbosity = options.command_verbosity
+    hide = options.silent_checks == 'hide'
+    limit = options.checks_output_lines
+    mime = options.mime
+    method = options.spawn_method
+    terminal = terminal_working()
+    last_interrupt = 0
+    matching_checks = set()
+    if mime:
+        filecmd = which('file')
+        if magic and filecmd:
+            typedb = magic.open(magic.MAGIC_MIME_TYPE)
+            typedb.load()
+        else:
+            if not filecmd:
+                print('ERROR: MIME type checking requested but file command not installed', file=sys.stderr)
+            if not magic:
+                print('ERROR: MIME type checking requested but Python magic module not installed', file=sys.stderr)
+            sys.exit(1)
+    else:
+        typedb = None
+    walk(typedb, checks, remarks, matching_checks, True, os.path.pardir)
+    walk(typedb, checks, remarks, matching_checks, False, os.path.curdir)
+    if typedb:
+        typedb.close()
+    types = bool(typedb)
+    if options.install == 'auto':
+        options.install = install_choice()
+    if options.install:
+        ret = install(options.install, matching_checks, checks)
+        # Exit since users will not expect mixing install and checks
+        sys.exit(ret)
+    else:
+        install_type = install_choice()
+        cats_install = install_cmd(install_type)
+    for name, check in sorted(checks.items()):
+        next = False
+        if name not in matching_checks and not check.disabled:
+            next |= remark(remarks, name, 'no matching files')
+        for reason in checks[name].disabled:
+            next |= remark(remarks, name, reason)
+        if next:
+            continue
+        try:
+            check.meet_prereq()
+        except UnmetPrereq as exc:
+            remark(remarks, name, str(exc))
+            if cats_install:
+                remark(remarks, None, 'commands can be installed with: {}'.format(cats_install))
+            exc = None
+        else:
+            if (time.time() - last_interrupt) < options.interrupt_period:
+                try:
+                    time.sleep(options.interrupt_period)
+                except KeyboardInterrupt:
+                    print()
+                    sys.exit()
+            try:
+                output = None
+                output = check.do(name, jobs, types, run, verbosity, hide, limit, method, terminal, remarks)
+            except KeyboardInterrupt:
+                if options.interrupt in {'exit', 'quit'} or (time.time() - last_interrupt) < options.interrupt_period:
+                    if output:
+                        if terminal:
+                            sys.stdout.buffer.write(reset_term)
+                        print()
+                    sys.exit()
+                elif options.interrupt == 'skip':
+                    remark(remarks, name, 'user interrupted')
+                    if output:
+                        if terminal:
+                            sys.stdout.buffer.write(reset_term)
+                        print()
+                last_interrupt = time.time()
+            if output:
+                print()
+    if run and hide and terminal:
+        erase_to_eol_cr()
+    if remarks:
+        header = 'Remarks:'
+        if terminal:
+            out = TextWrapper(80)
+            out.width = get_columns()
+        else:
+            class TextNotWrapper(object):
+                initial_indent = ''
+
+                def fill(self, line):
+                    return self.initial_indent + line
+            out = TextNotWrapper()
+        out.break_long_words = False
+        out.break_on_hyphens = False
+        if options.remarks_lines == 0:
+            out.initial_indent = header + ' '
+            out.subsequent_indent = ' ' * len(out.initial_indent)
+            print(out.fill(', '.join(sorted(remarks))))
+        else:
+            print(header)
+            if options.remarks_lines >= 1:
+                out.placeholder = ' ...'
+                out.max_lines = options.remarks_lines
+            for reason in sorted(remarks):
+                if remarks[reason]:
+                    out.initial_indent = '- {reason}: '.format(reason=reason)
+                    out.subsequent_indent = ' ' * len(out.initial_indent)
+                    print(out.fill(' '.join(sorted(remarks[reason]))))
+                else:
+                    print('- {reason}'.format(reason=reason))
+
+
+if __name__ == '__main__':
+    main()
+
+# vim:ts=4 sw=4 et

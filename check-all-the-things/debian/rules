@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+
+VERSION ?= $(shell dpkg-parsechangelog --show-field Version)
+P = check-all-the-things
+
+%:
+	dh $@ --parallel --with bash-completion
+
+override_dh_gencontrol:
+	./check-all-the-things --set-debian-substvars
+	dh_gencontrol
+
+override_dh_auto_build:
+	help2man \
+		--version-string=$(VERSION) \
+		--no-info \
+		--name="Check all of the things!" \
+		./$P \
+		> $P.1
+	register-python-argcomplete check-all-the-things > debian/$P.bash-completion
+	sed -i s/_python_argcomplete/_check_all_the_things_argcomplete/ debian/$P.bash-completion
+	sed -i 's/$$1/check-all-the-things/' debian/$P.bash-completion

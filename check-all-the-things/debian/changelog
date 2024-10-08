@@ -1,0 +1,326 @@
+check-all-the-things (2017.05.20) unstable; urgency=medium
+
+  * New release.
+    - The "Check Things Securely Yet Again" release
+    - Support BSD versions of the find command
+    - Support running in more types of terminals/places
+    - Support running commands in other dirs for safety
+    - Support properly disabling flags/checks
+    - Disable remarks about already disabled checks
+    - Update documentation, TODO items and URLs
+    - Print remarks more nicely in certain situations
+    - Print filenames and line numbers where possible
+    - Flag checks:
+      + dangerous - rpmlint ocaml-lintian
+      + run-in-tmp-dir - luacheck puppet-lint epubcheck erl-tidy
+      + fixme-silent - flawfinder gettext-lint-* luacheck hlint
+      + network - cme-check-dpkg
+      + manual - gettext-lint-spell
+    - Fix complexity - prevent arbitrary code execution
+    - Fix perlcritic - disable code execution, only run when perl present,
+                       increase verbosity to be more useful
+    - Fix clang-tidy regression from version 2016.06.29
+    - Fix zzuf - incorrect path matches
+    - Fix yamllint - incorrect find argument grouping
+    - Fix ELF & Perl checks - add MIME types
+    - Fix grep checks - use short options for portability
+    - Fix xapian-check - crash due to use of format strings
+    - Fix uudecode - include filenames in command-line
+    - Fix insecure-recv-keys - typo in regex
+    - Fix appstreamcli - unknown command-line option
+    - Fix m64-m32 - reduce false positives
+    - Fix gettext-lint-spell - add missing dependency, drop *.pot
+    - Fix afl - check it is installed properly
+    - Fix embed-dirs - add inc/ dirs for Perl packages
+    - Add podchecker - check Perl POD documentation
+    - Add pscan - check C printf format strings
+    - Add leaktracer - check programs for memory leaks
+    - Add tmperamental - check programs for tmpfile issues
+    - Add govet - report suspicious Go source code
+    - Add golint - report Go source code lint
+    - Add goimports - check missing/unused Go import lines
+    - Add rubocop - check Ruby code against Ruby Style Guide
+    - Add roodi - check Ruby code for design issues
+    - Add gendarme - check Mono/.NET ECMA CIL files
+    - Add make-phony - find misspelled .PHONY targets
+    - Add mypy - check Python static typing hints
+    - Add pyroma - check Python packaging quality
+    - Add bandit - check Python security quality
+    - Add dodgy - check dodgy lines in Python code
+    - Add vulture - check for dead Python code
+    - Add pycodestyle - check Python code style
+    - Add pydocstyle - check Python documentation style
+    - Add proselint - check for English prose issues
+    - Add chktex - check typographic errors in LaTeX docs
+    - Add fitscheck/wcslint/volint - FITS/VOTable files
+    - Add putty-private-key & openssh-private-key-rsa1
+    - Remove ghc-mod - just a wrapper for hlint
+    - TODO items for wtf flake8-plugins xpi-addons-linter
+      go-fix libdetectcoll sha1collisiondetection giffix
+      haxelint dockerlint dockerfile_lint dockerfile_checker
+      truffleHog pyt chap Devel::Plumber
+
+ -- Paul Wise <pabs@debian.org>  Sat, 20 May 2017 17:33:18 +0800
+
+check-all-the-things (2017.01.15) unstable; urgency=high
+
+  * New release.
+    - The "Check Things Securely Not Portably" release
+    - Reset terminal modes after commands to avoid colour spew
+    - Improve compatibility with Python 3.6
+    - Update python checks to not work on other distros
+      because the `python -m` command is insecure
+    - Update checkers removed from Debian - allow to run if installed
+    - Update lrzip-test/zstd-test - add MIME types
+    - Add lz4-test - check lz4 compressed files
+    - Add path-max - check for non-portable path size macros
+    - TODO items for deep-text-correcter sblint decopy
+
+ -- Paul Wise <pabs@debian.org>  Sun, 15 Jan 2017 10:37:30 +0800
+
+check-all-the-things (2016.12.25) unstable; urgency=medium
+
+  * New release.
+    - The "Check Everywhere For Tangerines" release
+    - Improve the 'no specific checks' remark
+    - Update php-syntax-check - ignore no files warning
+    - Update empty - never print inode/x-empty as unchecked
+    - Update pylint - check text/x-python files too
+    - Update python checks to work on other distros
+    - Add make - check Makefiles with GNU make
+    - Add pkg-config - check pkg-config .pc files
+    - Add t1lint - check Type 1 font files
+    - Add zstd-test - check zstd compressed files validity
+    - TODO items for urlycue multivalent pdf-hul pdfavalidation
+      huntbugs spotbugs find-sec-bugs binskim
+
+ -- Paul Wise <pabs@debian.org>  Sun, 25 Dec 2016 08:02:09 +0800
+
+check-all-the-things (2016.09.03) unstable; urgency=medium
+
+  * New release.
+    - The "Reproducibly Depend On Thing Checkers" release
+    - Fixes reproducible builds by sorting Recommends/Suggests (Closes: #829297)
+    - Rename an option in line with final 'Remarks' section rename
+    - Allow autocompletion with alias cats=check-all-the-things
+    - Ignore quilt .pc directories in all the places VCSen are ignored
+    - Eliminate terminal crunk for certain situations
+    - Update spellintian - ignore *.wav files too
+    - Update unzip-test - check *.zhfst files too
+    - Update embed-dirs - warn about deps and 3rdp dirs too
+    - Update cppcheck - check *.hxx *.hh files too
+    - Add cypher-lint - check Cypher Query Language files
+    - Add bitmap-synfig - ask where Synfig SIF source files are
+    - Add bitmap-povray - ask where POV-Ray POV source files are
+    - Add bitmap-gnuplot - ask where gnuplot scripts are
+    - Add bitmap-base64 - check files for embedded base64 images
+    - Add dsniff - check for passwords in packet capture files
+    - Add web-to-apt-key - check for blindly installing gpg keys
+    - Add insecure-recv-keys - check for insecure downloads of gpg keys
+    - TODO items for rstcheck anorack fuzz linklint webcheck doctorj xmlwf
+      checkit_tiff pylint-celery pylint-flask  pep8-naming vint flay mdetect
+      markdownlint haxe-checkstyle cmake-lint stylelint httpolice pedant
+      check-manifest rxp
+
+ -- Paul Wise <pabs@debian.org>  Sat, 03 Sep 2016 12:14:15 +0800
+
+check-all-the-things (2016.06.29.1) unstable; urgency=medium
+
+  * New release.
+    - The "Check A Few More Things Slightly More Securely" release
+    - More mitigations for Debian perl bug #588017
+    - Fix dependencies for uscan based checks
+
+ -- Paul Wise <pabs@debian.org>  Wed, 29 Jun 2016 13:06:12 +0200
+
+check-all-the-things (2016.06.29) unstable; urgency=medium
+
+  * Upload to unstable
+  * New release.
+    - The "Check Some Things Slightly More Securely" release
+    - Warn that running cats in untrusted dirs could have consequences
+    - Does not enable checks with disabled flags unless choosing those flags
+      This prevents running dangerous checks with -f perl (Closes: #826089)
+    - Mitigate Debian perl bug #588017 by passing -m-lib=. to perl-based checks
+      This prevents perl-based commands from running code from the current dir
+    - Fix MIME support: disable MIME in commands when MIME is turned off
+    - Give an error with checks/flags options without check names
+    - Fixes crash when interrupting the first command that is run
+    - Fix checking prerequisites for "cat ... | foo" command-lines
+    - Update dependencies for licensecheck-based checks (see #828830, #828872)
+    - Disable KWStyle - should only be run manually
+    - Add clang-tidy - tidy C++ code using LLVM
+    - Add clang-check - check C++ code using LLVM
+    - Add clang-modernize (jessie-only) - modernize C++ code
+    - Add ocaml-unsafe-features - check compiled OCaml for unsafe features
+
+ -- Paul Wise <pabs@debian.org>  Wed, 29 Jun 2016 10:43:04 +0200
+
+check-all-the-things (2016.06.25) experimental; urgency=medium
+
+  * New release.
+    - The "Check A Bunch Of Things" release
+    - The official abbreviation is now cats. Meow!
+    - Bump Standards-Version, no changes needed
+    - Use https for Vcs-Git and other URLs
+    - Warn away the busy, lazy or noise intolerant
+    - Drop the separation between groups/flags
+    - Drop todo item deps down to Suggests
+    - Fix file matching in a number of cases
+    - Add argument completion for bash
+    - Add an indicator of the currently running command
+    - Add (slow) support for matching files based on MIME type (Closes: #791722)
+    - Add better advice for style/complexity/other checks
+    - Disable network checks when there is no default gateway
+    - Trim check output to 10 lines by default
+    - Support overlays for older distros
+    - Add 'modify' flag for commands that modify files and
+      thus should not be run by default
+    - Add 'manual' flag for commands that must be manually run
+    - Handle 'todo' flagged checks properly
+    - Show list of found file extensions that were not checked
+    - Rename final section to 'Remarks' since the name grew long
+    - Give an error when choosing unknown checks/flags
+    - Report when help is needed for some existing checks
+    - Match more ZIP-based files for the unzip-test check
+    - Document the use of usertags for this package
+    - Document places where more check tools can be found
+    - Add appstreamcli validate - check AppStream files
+    - Add appstream-util validate - check AppStream files
+    - Add bls-standalone - check build logs for issues
+    - Add build-log-static-library - warn against static linking
+    - Add complexity - check C code for function complexity
+    - Add kwstyle - check C code for style conformance
+    - Add opencolladavalidator - check COLLADA files
+    - Add csslint-0.6 - check CSS files
+    - Add wrap-and-sort - wrap and sort various debian/ files
+    - Add license-reconcile - check debian/copyright files
+    - Add debmake-k - check debian/copyright files
+    - Add autodep8 - check if DEP-8 tests can be created
+    - Add lockdep - check pthread-using programs
+    - Add zzuf - fuzz program input
+    - Add afl - intelligently fuzz program input
+    - Add hardening-check - check programs for hardening
+    - Add spellintian - check spelling using lintian dictionaries
+    - Add flightcrew - check epub e-book files
+    - Add erlang-shell-inject - check for Erlang shell metachar injection
+    - Add erl-tidy - check Erlang code
+    - Add font-embedding-restrictions - check TTF embedding restrictions
+    - Add two jsonlints - check JSON files
+    - Add autoupdate - update autotools files
+    - Add autoscan - check completeness of configure.ac
+    - Add timeless - check for macros that break reproducible builds
+    - Add http - check for http URLs to switch to https
+    - Add embed checks - heuristics for embedded code copies
+    - Add mailto - check mailto: links
+    - Add ocaml-shell-injection - check for OCaml shell metachar injection
+    - Add pylint - check Python code for various issues
+    - Add rpmlint - check RPM files
+    - Add web-to-shell - check for `curl | sudo sh` antipattern
+    - Add ssl-cert-check - check SSL key/cert files
+    - Add yamllint - check YAML files
+    - TODO items for android-lint smatch rzip-test lrzip-test
+      csslint scan-copyrights licensecheck2dep5 debian-tracker
+      erlang-elvis opentype-sanitiser bugpicker nit librejs-cli
+      jpegoptim lisp-critic project-flint scheck ocaml-unsafe
+      ocaml-mascot cpants-lint php7cc pngcrush optipng advpng
+      mypy pycodestyle pydocstyle python3-requirements-detector
+      pydiatra pytype ruby-reek ruby-sadist ruby-derailer
+      ruby-space swiftlint x509lint certlint
+
+ -- Paul Wise <pabs@debian.org>  Sat, 25 Jun 2016 12:08:10 +0200
+
+check-all-the-things (2015.12.10) experimental; urgency=medium
+
+  * New release.
+    - Option to show commands instead of running them
+    - Show the currently running command as a progress indicator
+    - Line-by-line output when the ptyprocess module is not installed
+    - Show comments that have no associated command
+    - Make the Debian package build reproducible
+    - Make the uscan check work when USCAN_VERBOSE is set
+    - Add php-grinder - check PHP code for various flaws
+    - TODO items for cppclean js-standard js-modern-standard
+      Microsoft-Font-Validator sass-lint scss-lint lesslinter
+      django-template-tests soot plato coffeelint phpcpd
+      clonedigger xenon brakeman scalastyle tailor
+
+ -- Paul Wise <pabs@debian.org>  Thu, 10 Dec 2015 12:12:13 +0800
+
+check-all-the-things (2015.11.08.1) experimental; urgency=medium
+
+  * New release.
+    - Fix traceback when using installed script (Closes: #804491)
+
+ -- Paul Wise <pabs@debian.org>  Mon, 09 Nov 2015 07:07:24 +0800
+
+check-all-the-things (2015.11.08) experimental; urgency=medium
+
+  * New release.
+    - Option to quit when interrupted (Closes: #796338)
+      Quit after receiving two interrupts within 0.5 seconds
+    - Prune/filter VCS dirs for some checks (Closes: #796340)
+    - Allow selection of which checks to run based on
+      check names, flag names and group names
+    - Hide checks with no output by default
+    - Minimise display of suppressed checks by default
+    - Display names of checks that are not yet implemented
+    - Improve help output and add generated manual page
+    - Show comments for dangerous checks
+    - Add upstream-metadata - missing DEP-12 data
+    - Add licensecheck-generated-files - generated files
+    - Add puppet/puppet-lint - config management checks
+    - Add licensecheck-incorrect-fsf-address - bad FSF address
+    - Add 7z-test - test 7zip compressed archives
+    - Add disabled-tests - find disabled build-time tests
+    - Add luacheck - check Lua code for common issues
+    - Rename -m64-m32 to m64-m32 to fit with check selection options
+    - Rename rust unsafe check to rust-unsafe for namespacing
+    - Drop appdata-validate - should not be used any longer
+    - Fixes for ftlint clang-modernize bashate shellcheck empty
+      bfbtester *-private-key isutf8 unzip-test
+    - TODO items for foodcritic dodgy ruby-lint sourcecode-spellchecker
+      chk-origtargz ansible-lint puppet-syntax cbmc vera nsiqcppstyle
+      clang-check clang-tidy kwstyle abi-compliance-checker krazy
+      checkheaders ublinter clazy csslint dart-shell-metachars
+      dep11-tools spellintian scan-copyright gendarme
+
+ -- Paul Wise <pabs@debian.org>  Sun, 08 Nov 2015 19:18:25 +0800
+
+check-all-the-things (2015.08.11.1) experimental; urgency=medium
+
+  * New release.
+    - Actually fix dependencies for suspicious-source test
+
+ -- Paul Wise <pabs@debian.org>  Tue, 11 Aug 2015 12:40:00 +0200
+
+check-all-the-things (2015.08.11) experimental; urgency=medium
+
+  * New release.
+    - Add comments for tests that need an explanation
+    - Drop checkmp3/lintian4python tests, removed from Debian
+    - Fix dependencies for cme-check-dpkg test
+    - Fix dependencies for suspicious-source test
+    - Add flawfinder - C/C++ static analyser for security
+    - Add pmccabe - complexity analysis for C/C++
+    - Add pyflakes3 - Python 3 static analyser for logic errors
+    - Add lintex - finds TeX-related garbage files
+    - Add ghc-mod lint - Haskell linting
+    - Add isutf8 - ensure text files are UTF-8 encoded
+    - Add deheader - tool for reducing C/C++ header inclusion
+    - Add checks for X.509, OpenSSH and OpenPGP private keys
+    - Add check for empty files and directories
+    - Add check for TODO-related keywords
+    - Add check for install-related keywords in README
+    - Add check for -m32/-m64 compiler options
+    - Suggest using clang-modernize to update C++ code
+    - Suggest building go:generate files from source
+    - Compatibility with Python 3.2 from wheezy
+
+ -- Paul Wise <pabs@debian.org>  Tue, 11 Aug 2015 12:26:26 +0200
+
+check-all-the-things (2015.02.04) experimental; urgency=medium
+
+  * Initial release.
+
+ -- Paul Wise <pabs@debian.org>  Wed, 04 Feb 2015 12:23:55 +0800

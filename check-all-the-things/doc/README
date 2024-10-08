@@ -1,0 +1,157 @@
+# check-all-the-things
+
+This is a tool to run many tools that can check various things.
+It is probably not suitable for running in untrusted directories
+since there could be unknown interactions leading to code execution
+or commands that do code execution but are not yet known to do that.
+
+## Philosophy
+
+### Check as much as possible
+
+Every tool that is available should be run, check all the things!
+
+### Decisions are up to the humans
+
+Humans are capable of making decisions but they are bad at finding
+the information that might help with making decisions. Provide the
+humans with as much information as possible to help them make the
+decisions. Some tools will produce output that is not useful so
+the output of those commands should be filtered. Output from tools
+that produce only machine-readable information should be converted
+to human-readable information.
+
+### Leave details to the tools
+
+When a tool can recursively search a tree and automatically decide
+what to check, let it. For tools that are less intelligent, pass
+single filenames with {file} or multiple filenames with {files}.
+If a tool gains new capabilities that are provided by a hacky
+check via grep, drop the hacky check via grep. The {njobs} parameter
+can be used when a tool knows how to check things in parallel.
+
+## How to contribute
+
+The source code is hosted on GitHub:
+
+https://github.com/collab-qa/check-all-the-things
+
+When adding support for new checkers, please ensure that you add the
+'dangerous' flag for checks that execute package code.
+
+When adding support for new checkers that are dangerous when run in
+untrusted directories, please make sure that you mitigate this issue
+to ensure that the check does *not* execute package code. If there is
+no option for this, you can flag the check 'run-in-tmp-dir' and then
+cats will automatically update the command to execute in a subshell
+and change to a safe temporary directory first. Anything that directly
+or indirectly uses the commands or software listed below needs flagging.
+The check can refer to the current directory using the {cwd} variable.
+Please also verify that the check does not execute package code.
+
+* Lua
+* Python with `-c`, `-m` or `-` options.
+
+You can also flag the check 'run-in-root-dir' and then cats will
+automatically update the command to execute in a subshell and
+change to the root directory first. This flag can be used instead
+of 'run-in-tmp-dir' to create a simpler shell command when the
+tools used by the check are safe when in the root directory.
+
+When adding support for new checkers that are written in perl, please
+make sure that you mitigate the effects of Perl including . in @INC to
+ensure that the check does *not* execute package code. If you flag
+the check perl-inc-cwd-bug then cats will automatically prefix the
+command with `env PERL5OPT=-m-lib=.`, which usually mitigates this.
+Please also verify that the check does not execute package code.
+
+When adding support for new checkers, please ensure that you use {file}
+for checkers that take only one argument and that you use {files} for
+checkers that take more than one argument.
+
+When adding support for new checkers that have multiple verbosity levels,
+please add one command for each verbosity level in order of increasing
+verbosity and then cats will run them in increasing verbosity order,
+ending at the first command that produces any output. Since each additional
+verbosity level means more resource usage, it is a good idea to limit the
+amount of commands present based on the resource usage of each command.
+So resource-intensive checks should have fewer commands and cheaper checks
+are able to have more. Keeping the amount of commands under 10 is a
+reasonable rule of thumb.
+
+When the support for a check is suboptimal, you can add fixme to the flags
+field and add a comment with info about what needs to be fixed.
+
+Some common comments for fixme flags are available with additional flags:
+
+* fixme-silent: when commands need an option to be more silent
+* fixme-ignore: when commands need an option to ignore some paths
+
+When adding TODO entries, please add a new check config but set the flags
+field to todo and add any known hints in the debian/comment/command fields.
+
+When adding TODO entries for packages not in Debian, please either add
+the ITP bug number or a URL to upstream in the comment field.
+
+For ITP bugs or when reporting bugs on other tools that show up in
+check-all-the-things, please mark the bug as affecting check-all-the-things
+and please usertag the bugs as mentioned in the bugs section below.
+
+For more involved changes to the code you might want to file a bug to
+discuss the changes with people who are interested.
+
+For low-latency discussion you can join the Debian QA IRC channel:
+
+* ircs://irc.oftc.net/debian-qa
+* https://webchat.oftc.net/?channels=debian-qa
+
+Please sign all of your commits and tags with OpenPGP:
+
+https://mikegerwitz.com/papers/git-horror-story
+https://git-scm.com/book/en/v2/Git-Tools-Signing-Your-Work#_everyone_must_sign
+
+Before releases, update lists of extensions copied from elsewhere:
+
+    git grep -C1 TODO.*releases
+
+Every release should proclaim to be the "Check all the things" release,
+but the phrase needs to be mutated for each release to a similar phrase.
+
+Tags should be created using this command and the tag annotation should
+be the release notes for this version, usually stuff from debian/changelog.
+
+    git tag -a -s check-all-the-things-$(date -u --iso-8601 | tr - .)
+
+You can use 'cats' as the abbreviation of check-all-the-things. Meow!
+
+## Bugs in Debian BTS
+
+ITP bugs and bugs filed against other packages should be marked as
+affecting check-all-the-things and usertagged as below.
+
+The user for usertags is check-all-the-things@packages.debian.org
+
+These usertags should be used:
+
+* new-check: for ITPs or bugs that block the addition of new checks
+* new-issues: for requests to check new issues in particular checker tools
+* noise: for bugs in particular checkers that make unnecessary noise
+* false-positive: for false positives in particular checker tools
+* file-detection: for issues related to choice of files to check
+* rm-check: for bugs related to the removal of tools used by checks
+
+Please feel free to add new usertags and document them here.
+
+For example:
+
+    To: submit@bugs.debian.org
+    
+    User: check-all-the-things@packages.debian.org
+    Usertags: new-check
+    Control: affects -1 check-all-the-things
+
+To: control@bugs.debian.org
+
+    user check-all-the-things@packages.debian.org
+    usertags 123456 + new-check
+    affects  123456 + check-all-the-things
