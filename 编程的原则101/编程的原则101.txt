@@ -231,7 +231,43 @@ Software is like sex; it's better when it's free.
 一过了这个年龄段, 他们就变成自己的影子, 以后的生命只是在不断重复自己.
 ——<<约翰.克里斯朵夫>>罗曼.罗兰
 
+Everything is a Text File
+https://en.wikipedia.org/wiki/Everything_is_a_file
+    Directories, hard drives, modems, keyboards are all simple streams of bytes. Getting used to the idea that everything is a text file
+is a crucial first step in feeling comfortable on a UNIX environment.
+
+
+Eric Raymond's 17 Unix Rules
+    Build modular programs
+    Write readable programs
+    Use composition
+    Separate mechanisms from policy
+    Write simple programs
+    Write small programs
+    Write transparent programs
+    Write robust programs
+    Make data complicated when required, not the program
+    Build on potential users' expected knowledge
+    Avoid unnecessary output
+    Write programs which fail in a way that is easy to diagnose
+    Value developer time over machine time
+    Write abstract programs that generate code instead of writing code by hand
+    Prototype software before polishing it
+    Write flexible and open programs
+    Make the program and protocols extensible
+Mike Gancarz: The UNIX Philosophy
+    Small is beautiful
+    Make each program do one thing well
+    Build a prototype as soon as possible
+    Choose portability over efficiency
+    Store data in flat text files
+    Use software leverage to your advantage
+    Use shell scripts to increase leverage and portability
+    Avoid captive user interfaces
+    Make every program a filter
+
 
 https://program-think.blogspot.com/2014/08/maxim.html
 https://program-think.blogspot.com/2012/05/weekly-share-5.html
 https://program-think.blogspot.com/2009/03/book-review-mythical-man-month.html
+
